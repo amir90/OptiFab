@@ -1,0 +1,186 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>15.0</VCProjectVersion>
+    <ProjectGuid>{F0C74BC4-33FE-4903-9473-FB7CB3B37A30}</ProjectGuid>
+    <RootNamespace>Project1</RootNamespace>
+    <WindowsTargetPlatformVersion>10.0.17763.0</WindowsTargetPlatformVersion>
+    <ProjectName>optiFab</ProjectName>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v120</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v120</PlatformToolset>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup />
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <SDLCheck>true</SDLCheck>
+      <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>C:\Users\barda\Documents\Vega\include</AdditionalIncludeDirectories>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;volumetricMesh.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <ShowProgress>LinkVerbose</ShowProgress>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>Disabled</Optimization>
+      <SDLCheck>true</SDLCheck>
+      <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>C:\Users\barda\Documents\mma-master\src\mma;C:\Users\barda\Documents\eigen-eigen-b3f3d4950030;C:\Users\barda\Documents\libigl-legacy-master\include;C:\Users\barda\Documents\libigl-legacy-master\external\imgui;C:\Users\barda\Documents\glfw-master\include;C:\Users\barda\Documents\imgui-master;C:\Users\barda\Documents\imgui-master\examples\libs\gl3w;C:\Users\barda\Documents\imgui-master\examples\libs\glfw\include;C:\Users\barda\Documents\imgui-master\examples;C:\Users\barda\Documents\Spec2Fab\include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>_MBCS;%(PreprocessorDefinitions);HAVE_STRUCT_TIMESPEC;_CRT_SECURE_NO_WARNINGS;_SCL_SECURE_NO_WARNINGS</PreprocessorDefinitions>
+      <AdditionalOptions>/bigobj %(AdditionalOptions)</AdditionalOptions>
+    </ClCompile>
+    <Link>
+      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;mma_mma.lib;glfw3.lib;opengl32.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <ShowProgress>LinkVerbose</ShowProgress>
+      <AdditionalLibraryDirectories>C:\Users\barda\Documents\mma-master\src\mma\Debug;C:\Users\barda\Documents\glfw-master\bin\x64\src\Release;C:\Users\barda\Documents\imgui-master\examples\libs\glfw\lib-vc2010-64</AdditionalLibraryDirectories>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>C:\Users\barda\Documents\Vega\include;;C:\Users\barda\Documents\imgui-master;C:\Users\barda\Documents\imgui-master\examples\libs\gl3w;C:\Users\barda\Documents\imgui-master\examples\libs\gl3w</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>_MBCS;%(PreprocessorDefinitions);_CRT_SECURE_NO_WARNINGS; HAVE_STRUCT_TIMESPEC</PreprocessorDefinitions>
+    </ClCompile>
+    <Link>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <AdditionalLibraryDirectories>C:\Users\barda\Documents\Vega\lib;;C:\Users\barda\Documents\imgui-master\examples\libs\glfw\lib-vc2010-64</AdditionalLibraryDirectories>
+      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies);volumetricMesh.lib;glfw3.lib;opengl32.lib;glfw3.lib</AdditionalDependencies>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <WarningLevel>Level3</WarningLevel>
+      <Optimization>MaxSpeed</Optimization>
+      <FunctionLevelLinking>true</FunctionLevelLinking>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <SDLCheck>true</SDLCheck>
+      <ConformanceMode>true</ConformanceMode>
+      <AdditionalIncludeDirectories>C:\Users\barda\source\repos\Project1\Project1\dep;C:\Users\barda\source\repos\Project1\Project1\dep\eigen-eigen-b3f3d4950030;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>_MBCS;%(PreprocessorDefinitions);; HAVE_STRUCT_TIMESPEC;_CRT_SECURE_NO_WARNINGS; _NO_CRT_STDIO_INLINE;_CRT_SECURE_NO_WARNINGS</PreprocessorDefinitions>
+      <OpenMPSupport>false</OpenMPSupport>
+    </ClCompile>
+    <Link>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+      <AdditionalLibraryDirectories>C:\Users\barda\Documents\mma-master\src\mma\Release;C:\Users\barda\Documents\glfw-master\bin\x64\src\Release;C:\Users\barda\Documents\imgui-master\examples\libs\glfw\lib-vc2010-64;C:\Users\barda\Documents\SimpleOpenGLImageLibrary\projects\VC9\x64\Release;C:\Users\barda\Documents\libigl-stb-master\Release;C:\Users\barda\Documents\freeglut-3.0.0\lib\Release;C:\Users\barda\Documents\libigl-legacy-master\external\AntTweakBar\examples</AdditionalLibraryDirectories>
+      <AdditionalDependencies>kernel32.lib;user32.lib;gdi32.lib;winspool.lib;comdlg32.lib;advapi32.lib;shell32.lib;ole32.lib;oleaut32.lib;uuid.lib;odbc32.lib;odbccp32.lib;%(AdditionalDependencies);mma_mma.lib;glfw3.lib;opengl32.lib;SOIL.lib;igl_stb_image.lib;freeglut.lib;glut64.lib;legacy_stdio_definitions.lib</AdditionalDependencies>
+      <AdditionalOptions>C:\Users\barda\Documents\Vega\lib\*.lib %(AdditionalOptions)</AdditionalOptions>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+    </Link>
+    <ProjectReference>
+      <LinkLibraryDependencies>false</LinkLibraryDependencies>
+    </ProjectReference>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="..\..\..\..\Documents\imgui-master\imgui.cpp" />
+    <ClCompile Include="..\..\..\..\Documents\imgui-master\imgui_draw.cpp" />
+    <ClCompile Include="..\..\..\..\Documents\libigl-legacy-master\external\imgui\imgui_impl_glfw_gl3.cpp" />
+    <ClCompile Include="ComplianceTuner.cpp" />
+    <ClCompile Include="dep\NSGA3\alg_comparator.cpp" />
+    <ClCompile Include="dep\NSGA3\alg_crossover.cpp" />
+    <ClCompile Include="dep\NSGA3\alg_environmental_selection.cpp" />
+    <ClCompile Include="dep\NSGA3\alg_individual.cpp" />
+    <ClCompile Include="dep\NSGA3\alg_initialization.cpp" />
+    <ClCompile Include="dep\NSGA3\alg_mutation.cpp" />
+    <ClCompile Include="dep\NSGA3\alg_nondominated_sort.cpp" />
+    <ClCompile Include="dep\NSGA3\alg_nsgaiii.cpp" />
+    <ClCompile Include="dep\NSGA3\alg_reference_point.cpp" />
+    <ClCompile Include="dep\NSGA3\aux_math.cpp" />
+    <ClCompile Include="dep\NSGA3\aux_misc.cpp" />
+    <ClCompile Include="dep\NSGA3\exp_indicator.cpp" />
+    <ClCompile Include="dep\NSGA3\gnuplot_interface.cpp" />
+    <ClCompile Include="dep\NSGA3\log.cpp" />
+    <ClCompile Include="fatigueOptimizer.cpp" />
+    <ClCompile Include="FEMSimulator.cpp" />
+    <ClCompile Include="gl3w.c" />
+    <ClCompile Include="glad.c" />
+    <ClCompile Include="HelperTop.cpp" />
+    <ClCompile Include="NSGAIIIComp.cpp" />
+    <ClCompile Include="Source1.cpp" />
+    <ClCompile Include="StressTuner.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="..\..\..\..\Documents\libigl-legacy-master\external\imgui\imgui_impl_glfw_gl3.h" />
+    <ClInclude Include="ComplianceTuner.h" />
+    <ClInclude Include="fatigueOptimizer.h" />
+    <ClInclude Include="FEMSimulator.h" />
+    <ClInclude Include="HelperTop.h" />
+    <ClInclude Include="NSGAIIIComp.h" />
+    <ClInclude Include="StressTuner.h" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>
