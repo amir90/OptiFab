@@ -177,7 +177,7 @@ std::vector<Stress> calcStresses(double ni, double E, std::vector<std::vector<do
 
 std::vector<Stress> calcStresses(double ni, double E, std::vector<std::vector<double>> const nodes, std::vector<designVariable>  const x, Eigen::VectorXd  u, float dx, std::vector<int> targets) {
 
-//	std::cout << "calculating stress field" << std::endl;
+	std::cout << "calculating stress field" << std::endl;
 	//define stress-index pair vector
 	std::vector<Stress> stressVec;
 	stressVec.resize(x.size());
@@ -440,9 +440,9 @@ double optimizeStress(std::vector<Stress> stressVec, Eigen::VectorXd u, int C, i
 			float sum4 = 0;
 
 			//build sparse matrix - the global stiffness derivative matrix
-			for (int l = 0; l < x[j].influencesVoxels.size(); l++) {
+			for (auto l = x[j].influencesVoxels.begin(); l != x[j].influencesVoxels.end(); l++) {
 
-				int voxelIdx = x[j].influencesVoxels[l];
+				int voxelIdx = *l;
 
 				// Assembly:
 				std::vector<T> coefficients;            // list of non-zeros coefficients

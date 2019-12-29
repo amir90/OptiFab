@@ -548,7 +548,7 @@ void calc_rho(std::vector<std::vector<double>> const &nodes, std::vector<designV
 					std::cout << "wj: " << wj<< std::endl;
 				}
 				if (wj < 0) {
-					x[*i].influencesVoxels.push_back(l);
+					x[*i].influencesVoxels.insert(l);
 					wjx += wj * temp.value;
 				sum_wj += wj;
 				}

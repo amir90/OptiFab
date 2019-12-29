@@ -6,7 +6,29 @@
 #include <iostream>
 
 
-std::vector<std::vector<Stress>>   ClacStressTimeHistory(std::vector<int> targetElements, std::vector<designVariable> x, double a, double b, int power, std::set < std::pair<int, Eigen::Vector3f>, comp> forceVertexIdSet, double dx, double E, std::vector<std::vector<double>> nodes, std::set<int> constraintVertexIdSet, Eigen::VectorXd u_dot_0, Eigen::VectorXd u0, double dt, int steps, std::vector<std::vector<double>> &sigma_m, std::vector<std::vector<double>> &sigma_a, Eigen::VectorXd& u_test);
+std::vector<std::vector<Stress>>   ClacStressTimeHistory(std::vector<int> targetElements, std::vector<designVariable> x, double a, double b, int power, std::set < std::pair<int, Eigen::Vector3f>, comp> forceVertexIdSet, double dx, double E, std::vector<std::vector<double>> nodes, std::set<int> constraintVertexIdSet, Eigen::VectorXd u_dot_0, Eigen::VectorXd u0, double dt, int steps, std::vector<std::vector<double>> &sigma_m, std::vector<std::vector<double>> &sigma_a, Eigen::MatrixXd& u_test);
+
+double dD_PN_k_dgamma_e(int e_id, std::vector<designVariable> x, std::vector<int> Omega_k, double p, std::vector<double> damage, double r0, std::vector<std::vector<double>> nodes);
+
+double dD_PN_k_dDe(int e_id, double p, std::vector<designVariable> x, std::vector<int> Omega_k, std::vector<double> damage);
+
+double dDe_dsigma_a_i(double Sut, double bf, double Sf, std::vector<double> sigma_a, std::vector<double> sigma_m, int cycle, std::vector<int> n);
+
+//Eigen::RowVectorXd dsigma_a_i_d_sigma_a_i_vec(); exists in stress tuner
+
+Eigen::VectorXd dsigma_a_i_vec_dgamma_e(int e_id, double p, std::vector<designVariable> x, Eigen::VectorXd u_max, Eigen::VectorXd u_min, double E);
+
+double dDe_dsigma_m_i(double Sut, double bf, double Sf, std::vector<double> sigma_a, std::vector<double> sigma_m, int cycle, std::vector<int> n);
+
+inline Eigen::RowVectorXd dsigma_m_i_dsigma_m_i_vec();
+
+Eigen::Vector3d dsigma_m_i_vec_dgamma_e(int e_id, double p, std::vector<designVariable> x, Eigen::VectorXd u_max, Eigen::VectorXd u_min);
+
+Eigen::VectorXd Lambda_max_i();
+
+Eigen::SparseMatrixBase<Eigen::MatrixXd> dK_dgamma_e();
+
+Eigen::VectorXd Lambda_min_i();
 
 
 

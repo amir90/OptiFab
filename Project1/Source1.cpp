@@ -414,7 +414,9 @@ int main() {
 		xnew[i] = x[i].value;
 	}
 
+	bool animation_flag = false;
 
+	Eigen::MatrixXd disp_test;
 	/*
 	//initialize for stress optimizer
 	int C = 2; //number of stress groups
@@ -439,6 +441,8 @@ int main() {
 	viewer.core.is_animating = false;
 
 	int iter2 = 0;
+
+	int curr_time_step = 0;
 
 	viewer.callback_pre_draw = [&](igl::opengl::glfw::Viewer &)->bool
 	{
@@ -629,76 +633,125 @@ int main() {
 
 		if (optimizerFlag == 3) { //test fatigue optimizer
 
-		//	calc_rho(nodes, x, -1, dx, numOfVoxelsX, numOfVoxelsY, numOfVoxelsZ, r0);
+			int steps = 60;
 
-	//		Eigen::VectorXd u = doFEM(nodes, x, forceVertexIdSet, constraintVertexIdSet, dx, 1);
+			if (!animation_flag) {
 
-	//		std::cout << t << std::endl;
+				//	calc_rho(nodes, x, -1, dx, numOfVoxelsX, numOfVoxelsY, numOfVoxelsZ, r0);
 
-			Eigen::VectorXd u_dot_0, u0;
+			//		Eigen::VectorXd u = doFEM(nodes, x, forceVertexIdSet, constraintVertexIdSet, dx, 1);
 
-			u_dot_0 = Eigen::VectorXd::Zero(nodes.size());
+			//		std::cout << t << std::endl;
 
-			u0 = Eigen::VectorXd::Zero(nodes.size());
+				Eigen::VectorXd u_dot_0, u0;
 
-			std::vector<int> targets = linspace<int>(0, x.size() - 1, x.size());
+				u_dot_0 = Eigen::VectorXd::Zero(nodes.size());
 
-			std::cout << "targets size: " << targets.size() << std::endl;
+				u0 = Eigen::VectorXd::Zero(nodes.size());
 
-			std::vector<std::vector<double>> sigma_m;
+				std::vector<int> targets = linspace<int>(0, x.size() - 1, x.size());
 
-			std::vector<std::vector<double>> sigma_a;
+				std::cout << "targets size: " << targets.size() << std::endl;
 
-			int steps = 15;
+				std::vector<std::vector<double>> sigma_m;
 
-			Eigen::VectorXd disp_test(steps);
+				std::vector<std::vector<double>> sigma_a;
 
-			ClacStressTimeHistory(targets, x, 0.009, 0.009, power, forceVertexIdSet, dx,E, nodes, constraintVertexIdSet, u_dot_0, u0, 0.3, steps, sigma_m, sigma_a,disp_test);
+				ClacStressTimeHistory(targets, x, 0.001, 0.001, power, forceVertexIdSet, dx, E, nodes, constraintVertexIdSet, u_dot_0, u0, 0.0001, steps, sigma_m, sigma_a, disp_test);
 
-			if (debug_flag) {
+			//	std::cout << "calculated stress histories" << std::endl;
+				if (debug_flag) {
+					for (int i = 0; i < targets.size(); i++) {
+
+						for (int j = 0; j < sigma_m[i].size(); j++) {
+
+							std::cout << "i: " << i << " j: " << j << " sigma_m: " << sigma_m[i][j] << " sigma_a: " << sigma_a[i][j] << std::endl;
+
+						}
+					}
+				}
+
+				double bf = -0.075;
+				double sigma_f = 650000000;
+				double ni = 1000000;
+				double Sut = 380000000;
+
 				for (int i = 0; i < targets.size(); i++) {
 
-					for (int j = 0; j < sigma_m[i].size(); j++) {
+					std::vector<double> N(sigma_m[i].size());
+					//calculate damage for target
+					double D = 0;
+					for (int j = 0; j < N.size(); j++) {
+						if (((sigma_f*(Sut - std::max(sigma_m[i][j], 0.0)))) < 0) {
+							D = 1;
+							break;
+						}
+						D += ni / std::pow(0.5*(Sut*sigma_a[i][j] / (sigma_f*(Sut - std::max(sigma_m[i][j], 0.0)))), 1.0 / bf);
+						if (D >= 1) {
+							D = 1;
+							break;
+						}
+						//	std::cout << D << std::endl;
+					}
 
-						std::cout << "i: " << i << " j: " << j << " sigma_m: " << sigma_m[i][j] << " sigma_a: " << sigma_a[i][j] << std::endl;
+					x[targets[i]].rho = D;
+				}
+
+				for (int i = 0; i < x.size(); i++) {
+
+			//		std::cout << "element: " << i << ", Damage: " << x[i].rho << std::endl;
+					for (int j = 0; j < 12; j++) {
+						rhoFaces(i * 12 + j) = x[i].rho;
 
 					}
 				}
+
+				igl::jet(rhoFaces, true, Color);
+	//			viewer.data().set_mesh(V, F);
+				viewer.data().set_colors(Color);
+
+				animation_flag = true;
+
 			}
 
-			double bf = -0.124;
-			double sigma_f = 1103161170;
-			double ni= 10000;
-			double Sut = 420000;
+			std::ofstream writer("matrix.txt");
 
-			for (int i = 0; i < targets.size(); i++) {
+			writer << disp_test;
 
-				std::vector<double> N(sigma_m[i].size());
-				//calculate damage for target
-				double D = 0;
-				for (int j = 0; j < N.size(); j++) {
+			if (animation_flag) {
 
-					D += ni/std::pow(0.5*(Sut*sigma_a[i][j] / (sigma_f*(Sut - std::max(sigma_m[i][j], 0.0)))),1.0/bf);
-
+				// do animation
+				auto tempNodes = nodes;
+				double factor = 100000000;
+				for (int i = 0; i < tempNodes.size(); i++) {
+					tempNodes[i][0] = nodes[i][0] + disp_test(curr_time_step, 3 * i)*factor;
+					tempNodes[i][1] = nodes[i][1] + disp_test(curr_time_step, 3 * i + 1)*factor;
+					tempNodes[i][2] = nodes[i][2] + disp_test(curr_time_step, 3 * i + 2)*factor;
 				}
 
-				x[targets[i]].rho = D;
+			//	std::cout << "max movement: " << disp_test.row(curr_time_step).cwiseAbs().maxCoeff() << std::endl;
+				makeSurfaceMesh3(x, tempNodes); //writes mesh to file "mesh.obj"
+				igl::readOBJ("mesh.obj", V, F);
+				viewer.data().set_mesh(V, F);
+				curr_time_step++;
+				if (curr_time_step < steps) {
+					viewer.core.is_animating = true;
+				}
+				else {
+					curr_time_step = 0;
+					animation_flag = false;
+					viewer.core.is_animating = false;
+				}
+				return false;
+
+			}
+			else {
+
+
+
 			}
 
 		}
-
-		for (int i = 0; i < x.size(); i++) {
-
-			std::cout << "element: " << i << ", Damage: " << x[i].rho << std::endl;
-			for (int j = 0; j < 12; j++) {
-				rhoFaces(i * 12 + j) = x[i].rho;
-			}
-		}
-
-		igl::jet(rhoFaces, true, Color);
-		viewer.data().set_mesh(V, F);
-		viewer.data().set_colors(Color);
-
 			
 		viewer.core.is_animating = false;
 		return false;

@@ -2,6 +2,8 @@
 #include <Eigen\Core>
 #include <Eigen\Dense>
 #include <Eigen/Sparse>
+#include <set>
+
 
 struct designVariable {
 	int nodeIdx[8]; //each cell has eight nodes
@@ -14,7 +16,7 @@ struct designVariable {
 	double rho = 0.5;//weighted value of element
 	Eigen::VectorXd displacements = Eigen::VectorXd::Zero(6);
 	//double displacements[24];
-	std::vector<int> influencesVoxels; //voxels which this voxel influences
+	std::set<int> influencesVoxels; //voxels which this voxel influences
 	double sum_wj = 0;
 };
 
