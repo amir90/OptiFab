@@ -42,6 +42,8 @@ std::vector<T> linspace(T a, T b, size_t N) {
 
 int main() {
 
+	std::vector<int> mask;
+
 	int argc = 1;
 	char *argv[1] = { (char*)"Something" };
 
@@ -60,8 +62,11 @@ int main() {
 
 	create_mesh(nodes, x,  numOfVoxelsX,  numOfVoxelsY,  numOfVoxelsZ,dx);
 
+	//voxelize("assets/beam.obj", x, 5, 1, nodes);
+
 	std::cout << "done creating voxel mesh" << std::endl;
 
+	
 
 	//base material properties (Aluminum)
 	double ni = 0.3;
@@ -79,7 +84,7 @@ int main() {
 	Eigen::MatrixXd V;
 	Eigen::MatrixXi F;
 
-	igl::readOBJ("mesh.obj", V, F);
+	//igl::readOBJ("mesh.obj", V, F);
 
 	//constraint and force selection on voxel grid by mouse input
 
@@ -158,10 +163,12 @@ int main() {
 					}
 				}
 				else {
+					std::cout <<"testing select: " <<fid<<" "<<selectedV<<" "<< F(fid, selectedV) <<" "<<F.rows()<< " "<<V.rows()<< std::endl;
 					tempForce.first = F(fid, selectedV);
 					tempForce.second = Eigen::Vector3f(forceX, forceY, forceZ);
 					numOfVoxelsinPlane = 1;
 					nodecounter = 1;
+					std::cout << "testing end:"  << std::endl;
 				}
 
 				int currVoxel = startVoxel;
@@ -170,7 +177,7 @@ int main() {
 
 					std::cout << "current voxel is: " << currVoxel << std::endl;
 
-					while (nodecounter) {
+					while (nodecounter>0) {
 
 						if (planeVariable) {
 							tempForce.first = x[currVoxel].nodeIdx[vertexList[nodecounter - 1]];
@@ -179,10 +186,11 @@ int main() {
 						nodecounter--;
 
 						if (boolVariable) { //constraints are on - delete forces
-
+							std::cout << "got here" << std::endl;
 							if (constraintVertexIdSet.find(tempForce.first) == constraintVertexIdSet.end()) {
 								constraintVertexIdSet.insert(tempForce.first);
 								forceVertexIdSet.erase(tempForce);
+								std::cout << "got here1" << std::endl;
 							}
 							else {
 								if (!planeVariable) {
@@ -193,8 +201,10 @@ int main() {
 						}
 						else {
 							if (forceVertexIdSet.find(tempForce) == forceVertexIdSet.end()) {
+								std::cout << "got here2" << std::endl;
 								constraintVertexIdSet.erase(tempForce.first);
 								forceVertexIdSet.insert(tempForce);
+								std::cout << "got here3" << std::endl;
 							}
 							else {
 								if (!planeVariable) {
@@ -204,16 +214,22 @@ int main() {
 
 						}
 
+						std::cout << nodecounter << std::endl;
+
 					}
 
 					numOfVoxelsinPlane--;
-					currVoxel = moveY(x, currVoxel, 1);
-					if (currVoxel == -1) {
-						startVoxel = moveZ(x, startVoxel, 1);
-						currVoxel = startVoxel;
+					if (planeVariable) {
+						currVoxel = moveY(x, currVoxel, 1);
+						if (currVoxel == -1) {
+							startVoxel = moveZ(x, startVoxel, 1);
+							currVoxel = startVoxel;
 
+						}
 					}
 					nodecounter = 4;
+
+					std::cout << "got to end of loop" << std::endl;
 
 				}
 
@@ -254,7 +270,7 @@ int main() {
 	{
 		// Define next window position + size
 		ImGui::SetNextWindowPos(ImVec2(180.f * menu.menu_scaling(), 10), ImGuiSetCond_FirstUseEver);
-		ImGui::SetNextWindowSize(ImVec2(200, 600), ImGuiSetCond_FirstUseEver);
+		ImGui::SetNextWindowSize(ImVec2(250, 650), ImGuiSetCond_FirstUseEver);
 		ImGui::Begin(
 			"Preprocessing", nullptr,
 			ImGuiWindowFlags_NoSavedSettings
@@ -272,14 +288,46 @@ int main() {
 		{
 
 			viewer.data().clear();
-			create_mesh(nodes, x, numOfVoxelsX, numOfVoxelsY, numOfVoxelsZ,dx);
+			create_mesh(nodes, x, numOfVoxelsX, numOfVoxelsY, numOfVoxelsZ, dx);
 			forceVertexIdSet.clear();
 			constraintVertexIdSet.clear();
 			remove("C:\\Users\\barda\\source\\repos\\Project1\\x64\\Release\\mesh.obj");
-			makeSurfaceMesh3(x, nodes); //writes mesh to file "mesh.obj"
+			makeSurfaceMesh3(x, nodes); //writes mesh to file "finalObject.obj"
 			igl::readOBJ("mesh.obj", V, F);
 			viewer.data().set_mesh(V, F);
-		//	std::cout << "create mesh" << std::endl;
+			std::cout << "create mesh" << std::endl;
+
+		}
+
+		if (ImGui::Button("Open", ImVec2(100, 50))) {
+
+			viewer.data().clear();
+
+			char filename[MAX_PATH];
+
+			OPENFILENAME ofn;
+			ZeroMemory(&filename, sizeof(filename));
+			ZeroMemory(&ofn, sizeof(ofn));
+			ofn.lStructSize = sizeof(ofn);
+			ofn.hwndOwner = NULL;  // If you have a window to center over, put its HANDLE here
+			ofn.lpstrFilter = "Obj Files\0*.obj";
+			ofn.lpstrFile = filename;
+			ofn.nMaxFile = MAX_PATH;
+			ofn.lpstrTitle = "Select a File";
+			ofn.Flags = OFN_DONTADDTORECENT | OFN_FILEMUSTEXIST;
+
+			if (GetOpenFileNameA(&ofn))
+			{
+				std::cout << "You chose the file \"" << filename << "\"\n";
+			}
+			
+			voxelize(filename, x, 10, dx, nodes, V, F);
+			forceVertexIdSet.clear();
+			constraintVertexIdSet.clear();
+			makeMesh(x, nodes, mask); //writes mesh to file "finalObject.obj"
+			igl::readOBJ("finalObject.obj", V, F);
+			viewer.data().set_mesh(V, F);
+			std::cout << "create mesh" << std::endl;
 
 		}
 
@@ -374,13 +422,15 @@ int main() {
 
 		if (ImGui::Button("Clear", ImVec2(50, 50))) {
 			viewer.data().clear();
-			create_mesh(nodes, x, numOfVoxelsX, numOfVoxelsY, numOfVoxelsZ,dx);
+			x.clear();
+			nodes.clear();
+			//create_mesh(nodes, x, numOfVoxelsX, numOfVoxelsY, numOfVoxelsZ,dx);
 			forceVertexIdSet.clear();
 			constraintVertexIdSet.clear();
 			remove("C:\\Users\\barda\\source\\repos\\Project1\\x64\\Release\\mesh.obj");
-			makeSurfaceMesh3(x, nodes); //writes mesh to file "mesh.obj"
-			igl::readOBJ("mesh.obj", V, F);
-			viewer.data().set_mesh(V, F);
+			//makeSurfaceMesh3(x, nodes); //writes mesh to file "mesh.obj"
+			//igl::readOBJ("mesh.obj", V, F);
+			//viewer.data().set_mesh(V, F);
 		}
 		ImGui::End();
 	};
@@ -453,7 +503,7 @@ int main() {
 
 		Eigen::MatrixXd Color;
 
-		Eigen::VectorXd rhoFaces(x.size() * 12);
+		Eigen::VectorXd rhoFaces(F.rows());
 		
 		if (optimizerFlag == 0) { //test NSGA3
 
@@ -593,7 +643,7 @@ int main() {
 			change = optimizeCompliance(xnew, dg, g, dc, xmin, xmax, dc_filtered, V_allowed, mma, nodes, x, dx, numOfVoxelsX, numOfVoxelsY, numOfVoxelsZ,1);
 
 			if (iter2 > 30) {
-				makeMesh(x, nodes);
+				makeMesh(x, nodes,mask);
 				viewer.data().clear();
 				igl::readOBJ("finalObject.obj", V, F);
 				viewer.data().set_mesh(V, F);
@@ -608,17 +658,42 @@ int main() {
 
 		//	calc_rho(nodes, x, -1, dx, numOfVoxelsX, numOfVoxelsY, numOfVoxelsZ, r0);
 
-			Eigen::VectorXd u = doFEM(nodes, x, forceVertexIdSet, constraintVertexIdSet, dx, E);
+			std::cout << "begin stress" << std::endl;
+
+			auto constraintVertexIdSet2 = constraintVertexIdSet;
+			constraintVertexIdSet2.clear();
+			forceVertexIdSet2.clear();
+
+			for (auto i = forceVertexIdSet.begin(); i != forceVertexIdSet.end(); i++) {
+				forceVertexIdSet2.insert(std::pair<int,Eigen::Vector3f>(mask[i->first],i->second));
+			}
+			for (auto i = constraintVertexIdSet.begin(); i != constraintVertexIdSet.end(); i++) {
+				constraintVertexIdSet2.insert(mask[*i]);
+			}
+
+			Eigen::VectorXd u = doFEM(nodes, x, forceVertexIdSet2, constraintVertexIdSet2, dx, E);
+
+			for (int i = 0; i < nodes.size(); i++) {
+				nodes[i][0] += u(3 * i + 0)*100000; nodes[i][1] += u(3 * i + 1)*100000; nodes[i][2] += u(3 * i + 2)*100000;
+			}
+
+			makeMesh(x, nodes, mask);
+
+			igl::readOBJ("finalObject.obj",V,F);
 			
 			std::cout << "max displacement: " << u.maxCoeff() << std::endl;
 
 			auto StressVec = calcStresses(ni, E, nodes, x, u, dx);
-
+			rhoFaces.resize(F.rows());
+			std::cout << F.rows() << std::endl;
+			int ind = 0;
 			for (int i = 0; i < x.size(); i++) {
-
+				if (x[i].value>0.001) {
 				std::cout <<  "stress at " <<i<<" : "<< calcVonMises(StressVec[i].Stresses) << std::endl;
 				for (int j = 0; j < 12; j++) {
-					rhoFaces(i * 12 + j) = calcVonMises(StressVec[i].Stresses);
+					rhoFaces(ind * 12 + j) = calcVonMises(StressVec[i].Stresses);
+					}
+				ind++;
 				}
 			}
 
@@ -696,7 +771,6 @@ int main() {
 
 					x[targets[i]].rho = D;
 				}
-
 				for (int i = 0; i < x.size(); i++) {
 
 			//		std::cout << "element: " << i << ", Damage: " << x[i].rho << std::endl;

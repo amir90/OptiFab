@@ -3,6 +3,8 @@
 #include <Eigen\Dense>
 #include <Eigen/Sparse>
 #include <set>
+#include <igl/winding_number.h>
+#include <igl/readOBJ.h>
 
 
 struct designVariable {
@@ -32,6 +34,7 @@ int turn_untunable(std::vector<std::vector<double>> const &nodes, std::vector<de
 void makeSurfaceMesh(std::vector<designVariable> const &x, std::vector<std::vector<double>> const &nodes);
 void makeSurfaceMesh2(std::vector<designVariable> const &x, std::vector<std::vector<double>> const &nodes);
 void makeSurfaceMesh3(std::vector<designVariable> const &x, std::vector<std::vector<double>> const &nodes);
-void makeMesh(std::vector<designVariable> const &x, std::vector<std::vector<double>> const &nodes);
+void makeMesh(std::vector<designVariable> const &x, std::vector<std::vector<double>> const &nodes, std::vector<int> &mask);
 void calc_rho(std::vector<std::vector<double>> const &nodes, std::vector<designVariable>  &x, int NeighbourLayers, double dx, int nVx, int nVy, int nVz, float r0);
 void create_mesh(std::vector<std::vector<double>>& nodes, std::vector<designVariable> &x, int numOfVoxelsX, int numOfVoxelsY, int numOfVoxelsZ, float dx);
+void voxelize(std::string filename, std::vector<designVariable> &x , int N, double dx, std::vector<std::vector<double>> &nodes, Eigen::MatrixXd &V, Eigen::MatrixXi &F);

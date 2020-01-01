@@ -545,7 +545,6 @@ Eigen::VectorXd dsigma_a_i_vec_dgamma_e(int e_id, double p, std::vector<designVa
 
 	return 0.5*calc_DniS_Drho_e(x[e_id].rho)*E*std::pow(x[e_id].rho,p)*B_mat(0,0,0)*(u_max-u_min);
 
-
 }
 
 double dDe_dsigma_m_i (double Sut, double bf, double Sf, std::vector<double> sigma_a, std::vector<double> sigma_m, int cycle, std::vector<int> n) {
@@ -595,6 +594,7 @@ Eigen::Vector3d dsigma_m_i_vec_dgamma_e(int e_id, double p, std::vector<designVa
 
 }
 
+/*
 Eigen::VectorXd Lambda_max_i(std::vector<int> Omega_k, std::vector<Stress> sigma_a) {
 
 	Eigen::VectorXd sum = Eigen::VectorXd::Zero(6);
@@ -612,16 +612,17 @@ Eigen::VectorXd Lambda_max_i(std::vector<int> Omega_k, std::vector<Stress> sigma
 
 Eigen::VectorXd Lambda_min_i(std::vector<int> Omega_k, std::vector<Stress> sigma_a) {
 
-	Eigen::VectorXd sum = Eigen::VectorXd::Zero(6);
-	for (int i = 0; i < Omega_k.size(); i++) {
-		sum += dD_PN_k_dDe(i, p, x, Omega_k, damage)*(-1*dDe_dsigma_a_i(Sut, bf, Sf, sigma_a, sigma_m, cycle, n)*calc_DsigmaVM_Dsigma_a(sigma_a[i])*ni_s(x[i].rho)*E*std::pow(x[i].rho, p)*K_mat()*B_mat(0, 0, 0) +
-			dDe_dsigma_m_i(Sut, bf, Sf, sigma_a, sigma_m, cycle, n)*dsigma_m_i_dsigma_m_i_vec()*E*std::pow(x[i].rho, p)*K_mat()*B_mat(0, 0, 0).transpose());
+//	Eigen::VectorXd sum = Eigen::VectorXd::Zero(6);
+//	for (int i = 0; i < Omega_k.size(); i++) {
+//		sum += dD_PN_k_dDe(i, p, x, Omega_k, damage)*(-1*dDe_dsigma_a_i(Sut, bf, Sf, sigma_a, sigma_m, cycle, n)*calc_DsigmaVM_Dsigma_a(sigma_a[i])*ni_s(x[i].rho)*E*std::pow(x[i].rho, p)*K_mat()*B_mat(0, 0, 0) +
+//			dDe_dsigma_m_i(Sut, bf, Sf, sigma_a, sigma_m, cycle, n)*dsigma_m_i_dsigma_m_i_vec()*E*std::pow(x[i].rho, p)*K_mat()*B_mat(0, 0, 0).transpose());
 
-	}
+//	}
 
-	Eigen::MatrixXd K = E * std::pow(x[e_id].rho, p)*K_mat();
-	sum = K.inverse()*sum / 2;
-	Eigen::VectorXd lambda = K.inverse()*sum;
+//	Eigen::MatrixXd K = E * std::pow(x[e_id].rho, p)*K_mat();
+//	sum = K.inverse()*sum / 2;
+//	Eigen::VectorXd lambda = K.inverse()*sum;
 	return lambda;
 
 }
+*/

@@ -4,6 +4,7 @@
 #include<fstream>
 #include<set>
 
+#define eps 0.01
 
 double Min(double d1, double d2) {
 	return d1 < d2 ? d1 : d2;
@@ -416,16 +417,94 @@ void makeSurfaceMesh3(std::vector<designVariable> const &x, std::vector<std::vec
 	SurfaceObjFile3.close();
 }
 
-void makeMesh(std::vector<designVariable> const &x, std::vector<std::vector<double>> const &nodes) {
+void makeMesh(std::vector<designVariable> const &x, std::vector<std::vector<double>> const &nodes, std::vector<int> &mask) {
 
 	std::ofstream SurfaceObjFile;
 
 	SurfaceObjFile.open("finalObject.obj");
 	int nodeCounter = 0;
 
+	//define mask array which tracks which nodes need to be deactivated
+	std::vector<int> initMask(nodes.size(), -1);
+
+	for (int i = 0; i < x.size(); i++) {
+
+		if (x[i].value > 0.001) {
+
+			for (int j = 0; j < 8; j++) {
+				initMask[x[i].nodeIdx[j]] = 0;
+			}
+			
+		}
+	}
+
+	int currInd = 0;
+	for (int i = 0; i < nodes.size(); i++) {
+		if (initMask[i]==0) {
+			initMask[i] = currInd;
+			currInd++;
+			SurfaceObjFile << "v " << nodes[i][0] << " " << nodes[i][1] << " " << nodes[i][2] << std::endl;
+		}
+
+	}
+
+	//make mask
+	mask.resize(currInd);
+
+	for (int i = 0; i < initMask.size(); i++) {
+
+		if (initMask[i] != -1) {
+
+			mask[initMask[i]] = i;
+
+		}
+		
+	}
+
 	for (int i = 0; i < x.size(); i++) {
 
 		if (x[i].value <= 0.001) {
+			continue;
+		}
+		//{ 3,6,7,5 }
+		//SurfaceObjFile << "f " << nodeCounter + 1 << " " << nodeCounter + 2 << " " << nodeCounter + 3 << std::endl;
+		//SurfaceObjFile << "f " << nodeCounter + 3 << " " << nodeCounter + 4 << " " << nodeCounter + 1 << std::endl;
+		SurfaceObjFile << "f " << initMask[x[i].nodeIdx[3]] + 1 << " " << initMask[x[i].nodeIdx[6]] + 1 << " " << initMask[x[i].nodeIdx[7]] + 1 << std::endl;
+		SurfaceObjFile << "f " << initMask[x[i].nodeIdx[7]] + 1 << " " << initMask[x[i].nodeIdx[5]] + 1 << " " << initMask[x[i].nodeIdx[3]] + 1 << std::endl;
+
+		//{0,1,4,2}
+		//SurfaceObjFile << "f " << nodeCounter + 3 << " " << nodeCounter + 2 << " " << nodeCounter + 1 << std::endl;
+		//SurfaceObjFile << "f " << nodeCounter + 1 << " " << nodeCounter + 4 << " " << nodeCounter + 3 << std::endl;
+		SurfaceObjFile << "f " << initMask[x[i].nodeIdx[4]] + 1 << " " << initMask[x[i].nodeIdx[1]] + 1 << " " << initMask[x[i].nodeIdx[0]] + 1 << std::endl;
+		SurfaceObjFile << "f " << initMask[x[i].nodeIdx[0]] + 1 << " " << initMask[x[i].nodeIdx[2]] + 1 << " " << initMask[x[i].nodeIdx[4]] + 1 << std::endl;
+
+
+		//{2,4,7,5}
+		//SurfaceObjFile << "f " << nodeCounter + 1 << " " << nodeCounter + 2 << " " << nodeCounter + 3 << std::endl;
+		//SurfaceObjFile << "f " << nodeCounter + 3 << " " << nodeCounter + 4 << " " << nodeCounter + 1 << std::endl;
+		SurfaceObjFile << "f " << initMask[x[i].nodeIdx[7]] + 1 << " " << initMask[x[i].nodeIdx[4]] + 1 << " " << initMask[x[i].nodeIdx[2]] + 1 << std::endl;
+		SurfaceObjFile << "f " << initMask[x[i].nodeIdx[2]] + 1 << " " << initMask[x[i].nodeIdx[5]] + 1 << " " << initMask[x[i].nodeIdx[7]] + 1 << std::endl;
+
+		//{0,1,6,3}
+		SurfaceObjFile << "f " << initMask[x[i].nodeIdx[0]] + 1 << " " << initMask[x[i].nodeIdx[1]] + 1 << " " << initMask[x[i].nodeIdx[6]] + 1 << std::endl;
+		SurfaceObjFile << "f " << initMask[x[i].nodeIdx[6]] + 1 << " " << initMask[x[i].nodeIdx[3]] + 1 << " " << initMask[x[i].nodeIdx[0]] + 1 << std::endl;
+
+		//{1,6,7,4}
+		SurfaceObjFile << "f " << initMask[x[i].nodeIdx[7]] + 1 << " " << initMask[x[i].nodeIdx[6]] + 1 << " " << initMask[x[i].nodeIdx[1]] + 1 << std::endl;
+		SurfaceObjFile << "f " << initMask[x[i].nodeIdx[1]] + 1 << " " << initMask[x[i].nodeIdx[4]] + 1 << " " << initMask[x[i].nodeIdx[7]] + 1 << std::endl;
+
+		//{0,3,5,2}
+		SurfaceObjFile << "f " << initMask[x[i].nodeIdx[0]] + 1 << " " << initMask[x[i].nodeIdx[3]] + 1 << " " << initMask[x[i].nodeIdx[5]] + 1 << std::endl;
+		SurfaceObjFile << "f " << initMask[x[i].nodeIdx[5]] + 1 << " " << initMask[x[i].nodeIdx[2]] + 1 << " " << initMask[x[i].nodeIdx[0]] + 1 << std::endl;
+
+	}
+	SurfaceObjFile.close();
+
+	/*
+	for (int i = 0; i < x.size(); i++) {
+
+		if (x[i].value <= 0.001) {
+
 			continue;
 		}
 
@@ -479,6 +558,7 @@ void makeMesh(std::vector<designVariable> const &x, std::vector<std::vector<doub
 		nodeCounter += 4;
 
 	}
+	*/
 }
 
 void calc_rho(std::vector<std::vector<double>> const &nodes, std::vector<designVariable>  &x, int NeighbourLayers, double dx, int nVx, int nVy, int nVz, float r0) {
@@ -621,5 +701,45 @@ void create_mesh(std::vector<std::vector<double>>& nodes, std::vector<designVari
 			}
 		}
 	}
+
+}
+
+void voxelize(std::string filename, std::vector<designVariable> &x, int N, double dx, std::vector<std::vector<double>> &nodes, Eigen::MatrixXd &V, Eigen::MatrixXi &F ) {
+
+	//Eigen::MatrixXd V; Eigen::MatrixXi F; 
+	double w;
+	igl::readOBJ(filename, V, F);
+
+	Eigen::Vector3d m = V.colwise().minCoeff();
+	Eigen::Vector3d M = V.colwise().maxCoeff();
+
+	double factor = N/(M - m).minCoeff();
+
+	int Nx = (M - m)[0] * factor;
+	int Ny = (M - m)[1] * factor;
+	int Nz = (M - m)[2] * factor;
+
+	//V = V.rowwise() - m.transpose();
+	V = V * factor;
+
+	create_mesh(nodes, x, Nx, Ny, Nz, dx);
+
+	int ind=0;
+	for (int i = 0; i < x.size(); i++) {
+
+		Eigen::RowVector3d p;
+		p << x[i].position[0], x[i].position[1], x[i].position[2];
+
+		w = igl::winding_number(V, F, p);
+
+		if (std::abs(w) < eps) {
+			x[i].value = 0.001;
+			x[i].value = 0.001;
+			continue;
+		}
+
+
+	}
+
 
 }
