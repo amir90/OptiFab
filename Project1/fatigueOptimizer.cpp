@@ -79,7 +79,7 @@ void updateMaxStresses(Eigen::VectorXd tempStress, Eigen::VectorXd &maxStress, E
 }
 
 
-std::vector<std::vector<Stress>>  ClacStressTimeHistory(std::vector<int> targetElements, std::vector<designVariable> x, double a, double b, int power, std::set < std::pair<int, Eigen::Vector3f>, comp> forceVertexIdSet, double dx, double E, std::vector<std::vector<double>> nodes, std::set<int> constraintVertexIdSet, Eigen::VectorXd u_dot_0, Eigen::VectorXd u0, double dt, int steps, std::vector<std::vector<double>> &sigma_m, std::vector<std::vector<double>> &sigma_a,Eigen::MatrixXd& u_test)
+std::vector<std::vector<Stress>>  ClacStressTimeHistory(std::vector<int> targetElements, std::vector<designVariable> x, double a, double b, int power, std::set < std::pair<int, Eigen::Vector3f>, comp> forceVertexIdSet, double dx, double E, std::vector<std::vector<double>> nodes, std::set<int> constraintVertexIdSet, Eigen::VectorXd u_dot_0, Eigen::VectorXd u0, double dt, int steps, std::vector<std::vector<double>> &sigma_m, std::vector<std::vector<Stress>> &sigma_a,Eigen::MatrixXd& u_test)
 {
 
 	u_test = Eigen::MatrixXd(steps, 3*nodes.size());
@@ -261,7 +261,6 @@ std::vector<std::vector<Stress>>  ClacStressTimeHistory(std::vector<int> targetE
 			tempStress.Stresses(3) = stressListXY[i];
 			tempStress.vonMises = calcVonMises(tempStress.Stresses);
 			StressMat[0].push_back(tempStress);
-
 
 		}
 
@@ -455,7 +454,13 @@ std::vector<std::vector<Stress>>  ClacStressTimeHistory(std::vector<int> targetE
 
 //			std::cout << t0 << "\n" << currIdx-1 << std::endl;
 
-			sigma_a[i].push_back(calcVonMises((-relArr[t0].Stresses + relArr[lastIdx].Stresses)/2));
+			Stress tempStress;
+
+			tempStress.Stresses = (-relArr[t0].Stresses + relArr[lastIdx].Stresses) / 2;
+
+			tempStress.vonMises = calcVonMises(tempStress.Stresses);
+
+			sigma_a[i].push_back(tempStress);
 
 			Eigen::VectorXd meanStress = (relArr[t0].Stresses + relArr[lastIdx].Stresses)/2;
 
@@ -471,6 +476,7 @@ std::vector<std::vector<Stress>>  ClacStressTimeHistory(std::vector<int> targetE
 
 	return StressMat;
 }
+
 
 
 double dD_PN_k_dgamma_e(int e_id, std::vector<designVariable> x, std::vector<int> Omega_k, double p, std::vector<double> damage, double r0, std::vector<std::vector<double>> nodes) {
@@ -498,6 +504,7 @@ double dD_PN_k_dgamma_e(int e_id, std::vector<designVariable> x, std::vector<int
 }
 
 double dD_PN_k_dDe(int e_id, double p, std::vector<designVariable> x,std::vector<int> Omega_k, std::vector<double> damage) {
+	// tested and outputs a number
 
 	double sum1 = 0;
 
@@ -506,7 +513,8 @@ double dD_PN_k_dDe(int e_id, double p, std::vector<designVariable> x,std::vector
 		sum1 += damage[currId] * x[currId].rho;
 	}
 
-	return (p - 1 / p)*std::pow(sum1, 1.0 / p - 1)*std::pow(damage[e_id], p - 1)*x[e_id].rho;
+	//note: if sum1 is close to 0, numerically unstable. TODO: need to normalize
+	return (p - 1.0 / p)*std::pow(sum1, 1.0 / p - 1)*std::pow(damage[e_id], p - 1)*x[e_id].rho;
 
 }
 
@@ -588,21 +596,35 @@ inline Eigen::RowVectorXd dsigma_m_i_dsigma_m_i_vec() {
 
 }
 
+
 Eigen::Vector3d dsigma_m_i_vec_dgamma_e(int e_id, double p, std::vector<designVariable> x, Eigen::VectorXd u_max, Eigen::VectorXd u_min) {
 
 	return 0.5*calc_DniS_Drho_e(x[e_id].rho)*B_mat(0, 0, 0)*(u_max + u_min);
 
 }
 
-/*
-Eigen::VectorXd Lambda_max_i(std::vector<int> Omega_k, std::vector<Stress> sigma_a) {
 
-	Eigen::VectorXd sum = Eigen::VectorXd::Zero(6);
-	for (int i = 0; i < Omega_k.size(); i++) {
-		sum += dD_PN_k_dDe(i, p, x, Omega_k, damage)*(dDe_dsigma_a_i(Sut, bf, Sf, sigma_a, sigma_m, cycle, n)*calc_DsigmaVM_Dsigma_a(sigma_a[i])*ni_s(x[i].rho)*E*std::pow(x[i].rho, p)*K_mat()*B_mat(0, 0, 0) +
-			dDe_dsigma_m_i(Sut, bf, Sf, sigma_a, sigma_m, cycle, n)*dsigma_m_i_dsigma_m_i_vec()*E*std::pow(x[i].rho, p)*K_mat()*B_mat(0, 0, 0).transpose());
+Eigen::VectorXd Lambda_max_i(int e_id, double p, std::vector<designVariable> x, std::vector<int> Omega_k, std::vector<Stress> sigma_a, std::vector<double> damage, double Sut, double bf, double Sf, std::vector<double> sigma_m, double E, int cycle, std::vector<int> n) {
+
+	//tested and produces a number.
+
+	std::vector<double> Sigma_a_vonMises(sigma_a.size());
+
+	for (int i=0; i<sigma_a.size(); i++) {
+
+		Sigma_a_vonMises[i] = calcVonMises(sigma_a[i].Stresses);
 
 	}
+
+	Eigen::VectorXd sum = Eigen::VectorXd::Zero(24);
+	for (int i = 0; i < Omega_k.size(); i++) {
+		sum += dD_PN_k_dDe(i, p, x, Omega_k, damage)*(dDe_dsigma_a_i(Sut, bf, Sf, Sigma_a_vonMises, sigma_m, cycle, n)*calc_DsigmaVM_Dsigma_a(sigma_a[i]).transpose()*ni_s(x[i].rho)*E*std::pow(x[i].rho, p)*(K_mat()*B_mat(0, 0, 0).transpose()).transpose() +
+			dDe_dsigma_m_i(Sut, bf, Sf, Sigma_a_vonMises, sigma_m, cycle, n)*dsigma_m_i_dsigma_m_i_vec()*E*std::pow(x[i].rho, p)*(K_mat()*B_mat(0, 0, 0).transpose()).transpose());
+
+		std::cout << sum << std::endl;
+	}
+
+
 	sum = sum / 2;
 	Eigen::MatrixXd K = E * std::pow(x[e_id].rho, p)*K_mat();
 	Eigen::VectorXd lambda = K.inverse()*sum;
@@ -610,19 +632,27 @@ Eigen::VectorXd Lambda_max_i(std::vector<int> Omega_k, std::vector<Stress> sigma
 
 }
 
-Eigen::VectorXd Lambda_min_i(std::vector<int> Omega_k, std::vector<Stress> sigma_a) {
 
-//	Eigen::VectorXd sum = Eigen::VectorXd::Zero(6);
-//	for (int i = 0; i < Omega_k.size(); i++) {
-//		sum += dD_PN_k_dDe(i, p, x, Omega_k, damage)*(-1*dDe_dsigma_a_i(Sut, bf, Sf, sigma_a, sigma_m, cycle, n)*calc_DsigmaVM_Dsigma_a(sigma_a[i])*ni_s(x[i].rho)*E*std::pow(x[i].rho, p)*K_mat()*B_mat(0, 0, 0) +
-//			dDe_dsigma_m_i(Sut, bf, Sf, sigma_a, sigma_m, cycle, n)*dsigma_m_i_dsigma_m_i_vec()*E*std::pow(x[i].rho, p)*K_mat()*B_mat(0, 0, 0).transpose());
+Eigen::VectorXd Lambda_min_i(int e_id, double p, std::vector<designVariable> x, std::vector<int> Omega_k, std::vector<Stress> sigma_a, std::vector<double> damage, double Sut, double bf, double Sf, std::vector<double> sigma_m, double E, int cycle, std::vector<int> n) {
 
-//	}
+	std::vector<double> Sigma_a_vonMises(sigma_a.size());
 
-//	Eigen::MatrixXd K = E * std::pow(x[e_id].rho, p)*K_mat();
-//	sum = K.inverse()*sum / 2;
-//	Eigen::VectorXd lambda = K.inverse()*sum;
+	for (int i = 0; i < sigma_a.size(); i++) {
+
+		Sigma_a_vonMises[i] = calcVonMises(sigma_a[i].Stresses);
+
+	}
+
+	Eigen::VectorXd sum = Eigen::VectorXd::Zero(24);
+	for (int i = 0; i < Omega_k.size(); i++) {
+		sum += dD_PN_k_dDe(i, p, x, Omega_k, damage)*(-dDe_dsigma_a_i(Sut, bf, Sf, Sigma_a_vonMises, sigma_m, cycle, n)*calc_DsigmaVM_Dsigma_a(sigma_a[i]).transpose()*ni_s(x[i].rho)*E*std::pow(x[i].rho, p)*(K_mat()*B_mat(0, 0, 0).transpose()).transpose() +
+			dDe_dsigma_m_i(Sut, bf, Sf, Sigma_a_vonMises, sigma_m, cycle, n)*dsigma_m_i_dsigma_m_i_vec()*E*std::pow(x[i].rho, p)*(K_mat()*B_mat(0, 0, 0).transpose()).transpose());
+
+	}
+
+	Eigen::MatrixXd K = E * std::pow(x[e_id].rho, p)*K_mat();
+	sum = K.inverse()*sum / 2;
+	Eigen::VectorXd lambda = K.inverse()*sum;
 	return lambda;
 
 }
-*/

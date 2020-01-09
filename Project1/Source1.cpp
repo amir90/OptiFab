@@ -730,7 +730,7 @@ int main() {
 
 				std::vector<std::vector<double>> sigma_m;
 
-				std::vector<std::vector<double>> sigma_a;
+				std::vector<std::vector<Stress>> sigma_a;
 
 				ClacStressTimeHistory(targets, x, 0.001, 0.001, power, forceVertexIdSet, dx, E, nodes, constraintVertexIdSet, u_dot_0, u0, 0.0001, steps, sigma_m, sigma_a, disp_test);
 
@@ -740,7 +740,7 @@ int main() {
 
 						for (int j = 0; j < sigma_m[i].size(); j++) {
 
-							std::cout << "i: " << i << " j: " << j << " sigma_m: " << sigma_m[i][j] << " sigma_a: " << sigma_a[i][j] << std::endl;
+							std::cout << "i: " << i << " j: " << j << " sigma_m: " << sigma_m[i][j] << " sigma_a: " << sigma_a[i][j].vonMises << std::endl;
 
 						}
 					}
@@ -750,6 +750,9 @@ int main() {
 				double sigma_f = 650000000;
 				double ni = 1000000;
 				double Sut = 380000000;
+				double Sf = 3;
+
+				std::vector<double> damage(x.size(),0);
 
 				for (int i = 0; i < targets.size(); i++) {
 
@@ -761,7 +764,7 @@ int main() {
 							D = 1;
 							break;
 						}
-						D += ni / std::pow(0.5*(Sut*sigma_a[i][j] / (sigma_f*(Sut - std::max(sigma_m[i][j], 0.0)))), 1.0 / bf);
+						D += ni / std::pow(0.5*(Sut*sigma_a[i][j].vonMises / (sigma_f*(Sut - std::max(sigma_m[i][j], 0.0)))), 1.0 / bf);
 						if (D >= 1) {
 							D = 1;
 							break;
@@ -769,8 +772,18 @@ int main() {
 						//	std::cout << D << std::endl;
 					}
 
-					x[targets[i]].rho = D;
+			//		x[targets[i]].rho = D;
+
+					damage[i] = 0.1;
+
+					//test derivatives
+	
 				}
+
+				std::cout<<Lambda_max_i(0, 3, x, { 0 }, sigma_a[0], damage, Sut, bf, Sf, sigma_m[0], E, 0, std::vector<int>(sigma_a[0].size(),100))<<std::endl;
+
+
+
 				for (int i = 0; i < x.size(); i++) {
 
 			//		std::cout << "element: " << i << ", Damage: " << x[i].rho << std::endl;
