@@ -27,6 +27,23 @@
 #include "NSGAIIIComp.h"
 
 
+template <typename T>
+std::vector<size_t> sort_indexes(const std::vector<T> &v) {
+
+	// initialize original index locations
+	std::vector<size_t> idx(v.size());
+	std::iota(idx.begin(), idx.end(), 0);
+
+	// sort indexes based on comparing values in v
+	// using std::stable_sort instead of std::sort
+	// to avoid unnecessary index re-orderings
+	// when v contains elements of equal values 
+	std::stable_sort(idx.begin(), idx.end(),
+		[&v](size_t i1, size_t i2) {return v[i1] < v[i2]; });
+
+	return idx;
+}
+
 bool debug_flag = false;
 
 template <typename T>
@@ -51,7 +68,7 @@ int main() {
 	int numOfVoxelsX =30;
 	int numOfVoxelsY = 10;
 	int numOfVoxelsZ = 1;
-	float dx =1;//0.01;// 0.001; // size
+	float dx = 0.001; // size
 	int NeighbourLayers = 1;
 	float r0 = 1.5*dx*NeighbourLayers;
 
@@ -660,15 +677,20 @@ int main() {
 
 			std::cout << "begin stress" << std::endl;
 
-			auto constraintVertexIdSet2 = constraintVertexIdSet;
-			constraintVertexIdSet2.clear();
-			forceVertexIdSet2.clear();
 
-			for (auto i = forceVertexIdSet.begin(); i != forceVertexIdSet.end(); i++) {
-				forceVertexIdSet2.insert(std::pair<int,Eigen::Vector3f>(mask[i->first],i->second));
-			}
-			for (auto i = constraintVertexIdSet.begin(); i != constraintVertexIdSet.end(); i++) {
-				constraintVertexIdSet2.insert(mask[*i]);
+				auto constraintVertexIdSet2 = constraintVertexIdSet;
+				forceVertexIdSet2 = forceVertexIdSet;
+
+				if (!mask.empty()) {
+				constraintVertexIdSet2.clear();
+				forceVertexIdSet2.clear();
+
+				for (auto i = forceVertexIdSet.begin(); i != forceVertexIdSet.end(); i++) {
+					forceVertexIdSet2.insert(std::pair<int, Eigen::Vector3f>(mask[i->first], i->second));
+				}
+				for (auto i = constraintVertexIdSet.begin(); i != constraintVertexIdSet.end(); i++) {
+					constraintVertexIdSet2.insert(mask[*i]);
+				}
 			}
 
 			Eigen::VectorXd u = doFEM(nodes, x, forceVertexIdSet2, constraintVertexIdSet2, dx, E);
@@ -677,9 +699,13 @@ int main() {
 				nodes[i][0] += u(3 * i + 0)*100000; nodes[i][1] += u(3 * i + 1)*100000; nodes[i][2] += u(3 * i + 2)*100000;
 			}
 
-			makeMesh(x, nodes, mask);
+			if (!mask.empty()) {
 
-			igl::readOBJ("finalObject.obj",V,F);
+				makeMesh(x, nodes, mask);
+
+				igl::readOBJ("finalObject.obj", V, F);
+
+			}
 			
 			std::cout << "max displacement: " << u.maxCoeff() << std::endl;
 
@@ -732,7 +758,19 @@ int main() {
 
 				std::vector<std::vector<Stress>> sigma_a;
 
-				ClacStressTimeHistory(targets, x, 0.001, 0.001, power, forceVertexIdSet, dx, E, nodes, constraintVertexIdSet, u_dot_0, u0, 0.0001, steps, sigma_m, sigma_a, disp_test);
+				std::vector<Eigen::VectorXd> u_max;
+
+				std::vector<Eigen::VectorXd> u_min;
+
+				ClacStressTimeHistory(targets, x, 0.001, 0.001, power, forceVertexIdSet, dx, E, nodes, constraintVertexIdSet, u_dot_0, u0, 0.0001, steps, sigma_m, sigma_a, disp_test,u_max,u_min);
+
+				std::cout << "number of u_max: " << u_max.size() <<"/"<< sigma_a.size() << std::endl;
+
+				for (auto t : u_max) {
+
+					std::cout << t << std::endl;
+
+				}
 
 			//	std::cout << "calculated stress histories" << std::endl;
 				if (debug_flag) {
@@ -745,6 +783,8 @@ int main() {
 						}
 					}
 				}
+
+				
 
 				double bf = -0.075;
 				double sigma_f = 650000000;
@@ -764,7 +804,7 @@ int main() {
 							D = 1;
 							break;
 						}
-						D += ni / std::pow(0.5*(Sut*sigma_a[i][j].vonMises / (sigma_f*(Sut - std::max(sigma_m[i][j], 0.0)))), 1.0 / bf);
+						D += ni*2*std::pow(Sut*sigma_a[i][j].vonMises / (sigma_f*(Sut - std::max(sigma_m[i][j], 0.0))), -1.0 / bf);
 						if (D >= 1) {
 							D = 1;
 							break;
@@ -772,17 +812,42 @@ int main() {
 						//	std::cout << D << std::endl;
 					}
 
-			//		x[targets[i]].rho = D;
+					x[targets[i]].rho = D;//sigma_a[i][0].vonMises;
+					damage[i] = D;
 
-					damage[i] = 0.1;
-
-					//test derivatives
 	
 				}
 
-				std::cout<<Lambda_max_i(0, 3, x, { 0 }, sigma_a[0], damage, Sut, bf, Sf, sigma_m[0], E, 0, std::vector<int>(sigma_a[0].size(),100))<<std::endl;
 
+				//need to split the damages in to groups
 
+				int K = 2; //number of damage groups
+
+				auto sorted = sort_indexes(damage);
+
+				std::vector<std::vector<int>> Omega_k;
+
+				for (int i = 0; i < K; i++) {
+
+					Omega_k.push_back(std::vector<int>(sorted.begin() + std::floor(i / K * sorted.size()), sorted.begin() + std::floor((i+1) / K * sorted.size())));
+
+				}
+				
+				//test sorting - passed
+				/*
+				std::cout << "testing sorting" << std::endl;
+				for (int i = 0; i < damage.size(); i++) {
+
+					std::cout << "id of sorted: " << sorted[i] << ", damage of sorted: " << damage[sorted[i]] << std::endl;
+
+				}
+				*/
+
+				std::vector<int> n(sigma_a.size(), ni);
+
+				std::vector<double> derivs = full_dD_PN_k_dgamma_e(x, Omega_k, n, power, u_max, u_min, sigma_a, damage, Sut, bf, Sf,sigma_m, E, nodes, r0);
+
+				
 
 				for (int i = 0; i < x.size(); i++) {
 
@@ -797,7 +862,7 @@ int main() {
 	//			viewer.data().set_mesh(V, F);
 				viewer.data().set_colors(Color);
 
-				animation_flag = true;
+				animation_flag = false; //change to true for animation
 
 			}
 
@@ -809,7 +874,7 @@ int main() {
 
 				// do animation
 				auto tempNodes = nodes;
-				double factor = 100000000;
+				double factor = 1;
 				for (int i = 0; i < tempNodes.size(); i++) {
 					tempNodes[i][0] = nodes[i][0] + disp_test(curr_time_step, 3 * i)*factor;
 					tempNodes[i][1] = nodes[i][1] + disp_test(curr_time_step, 3 * i + 1)*factor;
