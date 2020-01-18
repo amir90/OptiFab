@@ -451,21 +451,41 @@ Eigen::SparseMatrix<double> build_global_stiffness_matrix_full(std::vector<desig
 
 	//	std::cout << "made sparse global matrix!" <<A<< std::endl;
 	return A;
-
-
 }
 
-Eigen::VectorXd do_FEM(SpMat A, Eigen::VectorXd f) {
+Eigen::VectorXd do_FEM(SpMat &A, Eigen::VectorXd &f) {
 	//recieves a global stiffness matrix, the free DOFs, and the forces, and outputs the displacement for the free DOFs
-	Eigen::SimplicialCholesky<SpMat> chol(A);
-	//std::cout << A.rows() << " " << A.cols() << " " << f.rows() << " " << f.cols() << std::endl;
-	Eigen::VectorXd u = chol.solve(f);
 
+
+	//std::cout << A.rows() <<" "<< A.cols() << std::endl;
+	//Eigen::BiCGSTAB<SpMat> solver;
+	//solver.setMaxIterations(61);
+	//solver.compute(A);
+	//Eigen::VectorXd u = solver.solve(f);
+	//std::cout << "#iterations:     " << solver.iterations() << std::endl;
+	//std::cout << "estimated error: " << solver.error() << std::endl;
+	/* ... update b ... */
+	//u = solver.solve(f); // solve again
+//	std::cout << Eigen::nbThreads() << std::endl;
+	Eigen::ConjugateGradient<Eigen::SparseMatrix<double>, Eigen::Lower | Eigen::Upper> cg;
+	cg.compute(A);
+//	Eigen::SimplicialCholesky<SpMat> chol(A);
+	//std::cout << A.rows() << " " << A.cols() << " " << f.rows() << " " << f.cols() << std::endl;
+	cg.setTolerance(0.01);
+//	cg.setMaxIterations(200);
+  //  Eigen::BenchTimer t;
+	//t.reset(); t.start();
+	//Eigen::initParallel();
+	std::cout << "start solving for displacements" << std::endl;
+	std::cout << "number of cores: " << Eigen::nbThreads()<< std::endl;
+	Eigen::VectorXd u = cg.solve(f);//chol.solve(f); //no performance gained with multithreading.. why?
+	//t.stop();
+	//std::cout << "Real time: " << t.value(1) << " error: "<< cg.error()<< std::endl; // 0=CPU_TIMER, 1=REAL_TIMER
+	std::cout << "done solving for displacements" << std::endl;
 	return u;
 }
 
-
-Eigen::VectorXd doFEM(std::vector<std::vector<double>> const nodes, std::vector<designVariable>  const x, std::set < std::pair<int, Eigen::Vector3f>, comp> forceVertexIdSet, std::set<int> constraintVertexIdSet, float dx, double E) {
+Eigen::VectorXd doFEM(std::vector<std::vector<double>> const &nodes, std::vector<designVariable>  const &x, std::set < std::pair<int, Eigen::Vector3f>, comp> &forceVertexIdSet, std::set<int> &constraintVertexIdSet, float dx, double E) {
 
 	Eigen::MatrixXd KE(24, 24); //assumes x[0] value of node is 1 at the start	(?)
 	KE = K_mat();
@@ -505,11 +525,17 @@ Eigen::VectorXd doFEM(std::vector<std::vector<double>> const nodes, std::vector<
 
 	}
 
+	std::cout << "start building global stiffness matrix" << std::endl;
+
 	//local Ba 
 	Eigen::MatrixXd  local_Ba(6, 24);
 
 	SpMat K_global = build_global_stiffness_matrix(x, nodes.size(), KE, power, freeDOF, ind);
 	K_global = K_global*E*dx;
+
+	std::cout << "done building global stiffness matrix" << std::endl;
+
+//	std::cout << f.nonZeros() << std::endl;
 
 	Eigen::VectorXd u_free = do_FEM(K_global, f);
 
@@ -529,5 +555,246 @@ Eigen::VectorXd doFEM(std::vector<std::vector<double>> const nodes, std::vector<
 	}
 
 	return u;
+
+}
+
+
+Eigen::VectorXd doFEM(std::vector<std::vector<double>> const &nodes, std::vector<designVariable>  const &x, std::set < std::pair<int, Eigen::Vector3f>, comp> &forceVertexIdSet, std::set<int> &constraintVertexIdSet, float dx, double E, SpMat &K_global,Eigen::VectorXd &f, std::vector<int> &freeDOF) {
+
+	Eigen::MatrixXd KE(24, 24); //assumes x[0] value of node is 1 at the start	(?)
+	KE = K_mat();
+	int power = 3;
+
+
+	std::cout << "start building global stiffness matrix" << std::endl;
+
+	K_global = K_global * E*dx;
+
+	std::cout << "done building global stiffness matrix" << std::endl;
+
+	Eigen::VectorXd u(nodes.size() * 3);
+
+	Eigen::VectorXd u_free = do_FEM(K_global, f);
+
+	int u_ind = 0;
+	for (int k = 0; k < nodes.size(); k++) {
+
+		if (freeDOF[k] != -1) {
+			u[k * 3] = u_free[u_ind++];
+			u[k * 3 + 1] = u_free[u_ind++];
+			u[k * 3 + 2] = u_free[u_ind++];
+		}
+		else {
+			u[k * 3] = 0;
+			u[k * 3 + 1] = 0;
+			u[k * 3 + 2] = 0;
+		}
+	}
+
+	return u;
+
+}
+
+void getBCforVoxelTest(std::vector<designVariable> &x, std::vector<std::vector<double>> &nodes, int numOfVoxelsX, int numOfVoxelsY, int numOfVoxelsZ, std::set < std::pair<int, Eigen::Vector3f>, comp> &forceVertexIdSet, std::set<int> &constraintVertexIdSet ) {
+
+	int planeInd = 1;
+	bool planeVariable = true;
+	std::pair<int, Eigen::Vector3f> tempForce;
+	int numOfVoxelsinPlane = 0;
+	int startVoxel = -1;
+	int nodecounter = 0;
+	std::vector<int> vertexList;
+	if (planeVariable) {
+
+		if (planeInd == 0) {
+			startVoxel = 0;
+			numOfVoxelsinPlane = numOfVoxelsY * numOfVoxelsZ;
+			nodecounter = 4;
+			vertexList = { 0,2,3,5 };
+
+		}
+		if (planeInd == 1) {
+			startVoxel = numOfVoxelsX - 1;
+			numOfVoxelsinPlane = numOfVoxelsY * numOfVoxelsZ;
+			nodecounter = 4;
+			vertexList = { 1,4,6,7 };
+		}
+	}
+	else {
+		//	std::cout << "testing select: " << fid << " " << selectedV << " " << F(fid, selectedV) << " " << F.rows() << " " << V.rows() << std::endl;
+		//	tempForce.first = F(fid, selectedV);
+	//		tempForce.second = Eigen::Vector3f(forceX, forceY, forceZ);
+		numOfVoxelsinPlane = 1;
+		nodecounter = 1;
+		std::cout << "testing end:" << std::endl;
+	}
+
+	int currVoxel = startVoxel;
+
+	while (numOfVoxelsinPlane) { //hack for selecting plane or individual vertices
+
+		std::cout << "current voxel is: " << currVoxel << std::endl;
+
+		while (nodecounter > 0) {
+
+			if (planeVariable) {
+				tempForce.first = x[currVoxel].nodeIdx[vertexList[nodecounter - 1]];
+				//		tempForce.second = Eigen::Vector3f(forceX, forceY, forceZ);
+			}
+			nodecounter--;
+
+			if (true) { //constraints are on - delete forces
+				std::cout << "got here" << std::endl;
+				if (constraintVertexIdSet.find(tempForce.first) == constraintVertexIdSet.end()) {
+					constraintVertexIdSet.insert(tempForce.first);
+					forceVertexIdSet.erase(tempForce);
+					std::cout << "got here1" << std::endl;
+					std::pair<int, Eigen::Vector3f> tempForce;
+			//		tempForce.first = x[0].nodeIdx[0];
+			//		tempForce.second = Eigen::Vector3f(0, -10, 0);
+			//		forceVertexIdSet.insert(tempForce);
+			//		tempForce.first = x[0].nodeIdx[3];
+			//		tempForce.second = Eigen::Vector3f(0, -10, 0);
+			//		forceVertexIdSet.insert(tempForce);
+				}
+				else {
+					if (!planeVariable) {
+						constraintVertexIdSet.erase(tempForce.first);
+					}
+				}
+
+			}
+			else {
+				if (forceVertexIdSet.find(tempForce) == forceVertexIdSet.end()) {
+					std::cout << "got here2" << std::endl;
+					constraintVertexIdSet.erase(tempForce.first);
+					forceVertexIdSet.insert(tempForce);
+					std::cout << "got here3" << std::endl;
+				}
+				else {
+					if (!planeVariable) {
+						forceVertexIdSet.erase(tempForce);
+					}
+				}
+
+			}
+
+
+
+		}
+
+		numOfVoxelsinPlane--;
+		if (planeVariable) {
+			currVoxel = moveY(x, currVoxel, 1);
+			if (currVoxel == -1) {
+				startVoxel = moveZ(x, startVoxel, 1);
+				currVoxel = startVoxel;
+
+			}
+		}
+		nodecounter = 4;
+
+		std::cout << "got to end of loop" << std::endl;
+
+	}
+
+	planeInd = 0;
+	 planeVariable = true;
+	 numOfVoxelsinPlane = 0;
+	 startVoxel = -1;
+	 nodecounter = 0;
+	 vertexList;
+	if (planeVariable) {
+
+		if (planeInd == 0) {
+			startVoxel = 0;
+			numOfVoxelsinPlane = numOfVoxelsY * numOfVoxelsZ;
+			nodecounter = 4;
+			vertexList = { 0,2,3,5 };
+
+		}
+		if (planeInd == 1) {
+			startVoxel = numOfVoxelsX - 1;
+			numOfVoxelsinPlane = numOfVoxelsY * numOfVoxelsZ;
+			nodecounter = 4;
+			vertexList = { 1,4,6,7 };
+		}
+	}
+	else {
+		//	std::cout << "testing select: " << fid << " " << selectedV << " " << F(fid, selectedV) << " " << F.rows() << " " << V.rows() << std::endl;
+		//	tempForce.first = F(fid, selectedV);
+	//		tempForce.second = Eigen::Vector3f(forceX, forceY, forceZ);
+		numOfVoxelsinPlane = 1;
+		nodecounter = 1;
+		std::cout << "testing end:" << std::endl;
+	}
+
+	 currVoxel = startVoxel;
+
+	while (numOfVoxelsinPlane) { //hack for selecting plane or individual vertices
+
+		std::cout << "current voxel is: " << currVoxel << std::endl;
+
+		while (nodecounter > 0) {
+
+			if (planeVariable) {
+				tempForce.first = x[currVoxel].nodeIdx[vertexList[nodecounter - 1]];
+				tempForce.second = Eigen::Vector3f(0, -0.5, 0);
+			}
+			nodecounter--;
+
+			if (false) { //constraints are on - delete forces
+				std::cout << "got here" << std::endl;
+				if (constraintVertexIdSet.find(tempForce.first) == constraintVertexIdSet.end()) {
+					constraintVertexIdSet.insert(tempForce.first);
+					forceVertexIdSet.erase(tempForce);
+					std::cout << "got here1" << std::endl;
+				//	std::pair<int, Eigen::Vector3f> tempForce;
+					//		tempForce.first = x[0].nodeIdx[0];
+					//		tempForce.second = Eigen::Vector3f(0, -10, 0);
+					//		forceVertexIdSet.insert(tempForce);
+					//		tempForce.first = x[0].nodeIdx[3];
+					//		tempForce.second = Eigen::Vector3f(0, -10, 0);
+					//		forceVertexIdSet.insert(tempForce);
+				}
+				else {
+					if (!planeVariable) {
+						constraintVertexIdSet.erase(tempForce.first);
+					}
+				}
+
+			}
+			else {
+				if (forceVertexIdSet.find(tempForce) == forceVertexIdSet.end()) {
+					std::cout << "got here2" << std::endl;
+					constraintVertexIdSet.erase(tempForce.first);
+					forceVertexIdSet.insert(tempForce);
+					std::cout << "got here3" << std::endl;
+				}
+				else {
+					if (!planeVariable) {
+						forceVertexIdSet.erase(tempForce);
+					}
+				}
+
+			}
+
+		}
+
+		numOfVoxelsinPlane--;
+		if (planeVariable) {
+			currVoxel = moveY(x, currVoxel, 1);
+			if (currVoxel == -1) {
+				startVoxel = moveZ(x, startVoxel, 1);
+				currVoxel = startVoxel;
+
+			}
+		}
+		nodecounter = 4;
+
+		std::cout << "got to end of loop" << std::endl;
+
+	}
+
 
 }

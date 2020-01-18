@@ -79,10 +79,12 @@ void updateMaxStresses(Eigen::VectorXd tempStress, Eigen::VectorXd &maxStress, E
 }
 
 
-std::vector<std::vector<Stress>>  ClacStressTimeHistory(std::vector<int> targetElements, std::vector<designVariable> x, double a, double b, int power, std::set < std::pair<int, Eigen::Vector3f>, comp> forceVertexIdSet, double dx, double E, std::vector<std::vector<double>> nodes, std::set<int> constraintVertexIdSet, Eigen::VectorXd u_dot_0, Eigen::VectorXd u0, double dt, int steps, std::vector<std::vector<double>> &sigma_m, std::vector<std::vector<Stress>> &sigma_a,Eigen::MatrixXd& u_test, std::vector<Eigen::VectorXd> &u_max, std::vector<Eigen::VectorXd> &u_min)
+std::vector<std::vector<Stress>>  ClacStressTimeHistory(std::vector<int> targetElements, std::vector<designVariable> x, double a, double b, int power, std::set < std::pair<int, Eigen::Vector3f>, comp> forceVertexIdSet, double dx, double E, std::vector<std::vector<double>> nodes, std::set<int> constraintVertexIdSet, Eigen::VectorXd u_dot_0, Eigen::VectorXd u0, double dt, int steps, std::vector<std::vector<double>> &sigma_m, std::vector<std::vector<Stress>> &sigma_a,Eigen::MatrixXd& u_test, std::vector<std::vector<Eigen::VectorXd>> &u_max, std::vector<std::vector<Eigen::VectorXd>> &u_min)
 {
 
 	u_test = Eigen::MatrixXd(steps, 3*nodes.size());
+
+	Eigen::VectorXd  displacement(24);
 
 	std::vector<int> freeDOF;
 	freeDOF.resize(nodes.size());
@@ -442,9 +444,34 @@ std::vector<std::vector<Stress>>  ClacStressTimeHistory(std::vector<int> targetE
 
 			int real_tf = (lastIdx+minS)% StressMat[i].size();
 
-			u_min.push_back(u_test.row(real_t0));
+			//calculate displacement for target
 
-			u_max.push_back(u_test.row(real_tf));
+			Eigen::VectorXd minRow = u_test.row(real_t0);
+
+			displacement(0) = minRow[x[targetElements[i]].nodeIdx[0] * 3];	displacement(1) = minRow[x[targetElements[i]].nodeIdx[0] * 3 + 1]; displacement(2) = minRow[x[targetElements[i]].nodeIdx[0] * 3 + 2];
+			displacement(3) = minRow[x[targetElements[i]].nodeIdx[1] * 3];	displacement(4) = minRow[x[targetElements[i]].nodeIdx[1] * 3 + 1]; displacement(5) = minRow[x[targetElements[i]].nodeIdx[1] * 3 + 2];
+			displacement(6) = minRow[x[targetElements[i]].nodeIdx[2] * 3];	displacement(7) = minRow[x[targetElements[i]].nodeIdx[2] * 3 + 1]; displacement(8) = minRow[x[targetElements[i]].nodeIdx[2] * 3 + 2];
+			displacement(9) = minRow[x[targetElements[i]].nodeIdx[4] * 3];	displacement(10) = minRow[x[targetElements[i]].nodeIdx[4] * 3 + 1]; displacement(11) = minRow[x[targetElements[i]].nodeIdx[4] * 3 + 2];
+			displacement(12) = minRow[x[targetElements[i]].nodeIdx[3] * 3]; displacement(13) = minRow[x[targetElements[i]].nodeIdx[3] * 3 + 1]; displacement(14) = minRow[x[targetElements[i]].nodeIdx[3] * 3 + 2];
+			displacement(15) = minRow[x[targetElements[i]].nodeIdx[6] * 3]; displacement(16) = minRow[x[targetElements[i]].nodeIdx[6] * 3 + 1]; displacement(17) = minRow[x[targetElements[i]].nodeIdx[6] * 3 + 2];
+			displacement(18) = minRow[x[targetElements[i]].nodeIdx[5] * 3]; displacement(19) = minRow[x[targetElements[i]].nodeIdx[5] * 3 + 1]; displacement(20) = minRow[x[targetElements[i]].nodeIdx[5] * 3 + 2];
+			displacement(21) = minRow[x[targetElements[i]].nodeIdx[7] * 3]; displacement(22) = minRow[x[targetElements[i]].nodeIdx[7] * 3 + 1]; displacement(23) = minRow[x[targetElements[i]].nodeIdx[7] * 3 + 2];
+
+			u_min[i].push_back(displacement);
+
+			minRow = u_test.row(real_tf);
+
+			displacement(0) = minRow[x[targetElements[i]].nodeIdx[0] * 3];	displacement(1) = minRow[x[targetElements[i]].nodeIdx[0] * 3 + 1]; displacement(2) = minRow[x[targetElements[i]].nodeIdx[0] * 3 + 2];
+			displacement(3) = minRow[x[targetElements[i]].nodeIdx[1] * 3];	displacement(4) = minRow[x[targetElements[i]].nodeIdx[1] * 3 + 1]; displacement(5) = minRow[x[targetElements[i]].nodeIdx[1] * 3 + 2];
+			displacement(6) = minRow[x[targetElements[i]].nodeIdx[2] * 3];	displacement(7) = minRow[x[targetElements[i]].nodeIdx[2] * 3 + 1]; displacement(8) = minRow[x[targetElements[i]].nodeIdx[2] * 3 + 2];
+			displacement(9) = minRow[x[targetElements[i]].nodeIdx[4] * 3];	displacement(10) = minRow[x[targetElements[i]].nodeIdx[4] * 3 + 1]; displacement(11) = minRow[x[targetElements[i]].nodeIdx[4] * 3 + 2];
+			displacement(12) = minRow[x[targetElements[i]].nodeIdx[3] * 3]; displacement(13) = minRow[x[targetElements[i]].nodeIdx[3] * 3 + 1]; displacement(14) = minRow[x[targetElements[i]].nodeIdx[3] * 3 + 2];
+			displacement(15) = minRow[x[targetElements[i]].nodeIdx[6] * 3]; displacement(16) = minRow[x[targetElements[i]].nodeIdx[6] * 3 + 1]; displacement(17) = minRow[x[targetElements[i]].nodeIdx[6] * 3 + 2];
+			displacement(18) = minRow[x[targetElements[i]].nodeIdx[5] * 3]; displacement(19) = minRow[x[targetElements[i]].nodeIdx[5] * 3 + 1]; displacement(20) = minRow[x[targetElements[i]].nodeIdx[5] * 3 + 2];
+			displacement(21) = minRow[x[targetElements[i]].nodeIdx[7] * 3]; displacement(22) = minRow[x[targetElements[i]].nodeIdx[7] * 3 + 1]; displacement(23) = minRow[x[targetElements[i]].nodeIdx[7] * 3 + 2];
+
+
+			u_max[i].push_back(displacement);
 
 			tempStress.Stresses = (-relArr[t0].Stresses + relArr[lastIdx].Stresses) / 2;
 
@@ -522,6 +549,10 @@ double dDe_dsigma_a_i(double Sut, double bf, double Sf, std::vector<double> sigm
 
 		double Psi = sigma_m[i] / 2 + std::sqrt(sigma_m[i]*sigma_m[i]+ 0.00001) / 2;
 
+		if (Psi > Sut) { //damage is above 1 in e, want to lower sigma_mi
+			return -1;
+		}
+
 		if (i == cycle) {
 
 			factor = 2 * n[i] * std::pow((Sut*sigma_a[i] / (Sut - Psi)), -1.0 / bf);
@@ -561,9 +592,13 @@ double dDe_dsigma_m_i (double Sut, double bf, double Sf, std::vector<double> sig
 
 		double Psi = sigma_m[i] / 2 + std::sqrt(sigma_m[i] * sigma_m[i] + 0.00001) / 2;
 
+		if (Psi > Sut) { //damage is above 1 in e, want to lower sigma_mi
+			return -1;
+		}
+
 		if (i == cycle) {
 
-			dPsi = 0.5 - 0.5*sigma_m[i] / std::sqrt(sigma_m[i] * sigma_m[i] + eps);
+			dPsi = 0.5 + 0.5*sigma_m[i] / std::sqrt(sigma_m[i] * sigma_m[i] + eps);
 
 			factor = 2*n[i]*std::pow(Sut*sigma_a[i]/(Sut-Psi),-1.0/bf)/(Sut - Psi)*(1/Sf)*(1/bf) ;
 
@@ -587,79 +622,123 @@ inline Eigen::RowVectorXd dsigma_m_i_dsigma_m_i_vec() {
 }
 
 
-Eigen::Vector3d dsigma_m_i_vec_dgamma_e(int e_id, double p, std::vector<designVariable> x, Eigen::VectorXd u_max, Eigen::VectorXd u_min) {
+Eigen::VectorXd dsigma_m_i_vec_dgamma_e(int e_id, double p, std::vector<designVariable> x, Eigen::VectorXd u_max, Eigen::VectorXd u_min) {
+
+	//std::cout << B_mat(0, 0, 0).rows() << " " << B_mat(0, 0, 0).cols() << std::endl;
+
+	//std::cout << (u_max)<<std::endl;
+
+	//std::cout << (u_min + u_max).rows() << " " << (u_min + u_max).cols() << std::endl;
+
+	//std::cout << 0.5*calc_DniS_Drho_e(x[e_id].rho)*B_mat(0, 0, 0)*(u_max + u_min) << std::endl;
 
 	return 0.5*calc_DniS_Drho_e(x[e_id].rho)*B_mat(0, 0, 0)*(u_max + u_min);
 
 }
 
 
-Eigen::VectorXd Lambda_max_i(double p, std::vector<designVariable> x, std::vector<int> Omega_k, std::vector<Stress> sigma_a, std::vector<double> damage, double Sut, double bf, double Sf, std::vector<double> sigma_m, double E, int cycle, std::vector<int> n) {
+Eigen::VectorXd Lambda_max_i(double p, std::vector<designVariable> x, std::vector<int> Omega_k, std::vector<std::vector<Stress>> sigma_a, std::vector<double> damage, double Sut, double bf, double Sf, std::vector<std::vector<double>> sigma_m, double E, int cycle, std::vector<int> n) {
 
-	//tested and produces a number.
+	std::vector<std::vector<double>> Sigma_a_vonMises(sigma_a.size());
 
-	std::vector<double> Sigma_a_vonMises(sigma_a.size());
+	for (int i = 0; i < sigma_a.size(); i++) {
 
-	for (int i=0; i<sigma_a.size(); i++) {
+		Sigma_a_vonMises[i].resize(sigma_a[i].size());
 
-		Sigma_a_vonMises[i] = calcVonMises(sigma_a[i].Stresses);
+
+		for (int j = 0; j < sigma_a[i].size(); j++) {
+
+			Sigma_a_vonMises[i][j] = calcVonMises(sigma_a[i][j].Stresses);
+
+		}
 
 	}
 
-	Eigen::VectorXd sum = Eigen::VectorXd::Zero(24);
+
+	Eigen::VectorXd sum = Eigen::RowVectorXd::Zero(24);
 	for (int i = 0; i < Omega_k.size(); i++) {
-		sum += dD_PN_k_dDe(i, p, x, Omega_k, damage)*
-			(dDe_dsigma_a_i(Sut, bf, Sf, Sigma_a_vonMises, sigma_m, cycle, n)*calc_DsigmaVM_Dsigma_a(sigma_a[i]).transpose()*ni_s(x[i].rho)*E*std::pow(x[i].rho, p)*(K_mat()*B_mat(0, 0, 0).transpose()).transpose() +
-			dDe_dsigma_m_i(Sut, bf, Sf, Sigma_a_vonMises, sigma_m, cycle, n)*dsigma_m_i_dsigma_m_i_vec()*E*std::pow(x[i].rho, p)*(K_mat()*B_mat(0, 0, 0).transpose()).transpose());
-
-		std::cout << sum << std::endl;
+		int e_id = Omega_k[i];
+		if (cycle >= sigma_a[e_id].size()) {
+			continue;
+		}
+//		std::cout << (calc_DsigmaVM_Dsigma_a(sigma_a[e_id][cycle]).transpose()*(K_mat()*B_mat(0, 0, 0).transpose()).transpose()).rows() << " " << (calc_DsigmaVM_Dsigma_a(sigma_a[e_id][cycle]).transpose()*(K_mat()*B_mat(0, 0, 0).transpose()).transpose()).cols() << std::endl; //(1,24)
+//		std::cout << dDe_dsigma_a_i(Sut, bf, Sf, Sigma_a_vonMises[e_id], sigma_m[e_id], cycle, n) << std::endl;
+		  sum += dD_PN_k_dDe(e_id, p, x, Omega_k, damage) *
+			(dDe_dsigma_a_i(Sut, bf, Sf, Sigma_a_vonMises[e_id], sigma_m[e_id], cycle, n)*calc_DsigmaVM_Dsigma_a(sigma_a[e_id][cycle]).transpose()*ni_s(x[e_id].rho)*E*std::pow(x[e_id].rho, p)*(K_mat()*B_mat(0, 0, 0).transpose()).transpose() +
+				dDe_dsigma_m_i(Sut, bf, Sf, Sigma_a_vonMises[e_id], sigma_m[e_id], cycle, n)*dsigma_m_i_dsigma_m_i_vec()*E*std::pow(x[e_id].rho, p)*(K_mat()*B_mat(0, 0, 0).transpose()).transpose());
 	}
 
+//	std::cout << "got here" << std::endl;
 	sum = sum / 2;
-	return (K_mat()*sum).transpose();
+	return sum.transpose();
 
 }
 
 
-Eigen::VectorXd Lambda_min_i(double p, std::vector<designVariable> x, std::vector<int> Omega_k, std::vector<Stress> sigma_a, std::vector<double> damage, double Sut, double bf, double Sf, std::vector<double> sigma_m, double E, int cycle, std::vector<int> n) {
+Eigen::VectorXd Lambda_min_i(double p, std::vector<designVariable> x, std::vector<int> Omega_k, std::vector<std::vector<Stress>> sigma_a, std::vector<double> damage, double Sut, double bf, double Sf, std::vector<std::vector<double>> sigma_m, double E, int cycle, std::vector<int> n) {
 
-	std::vector<double> Sigma_a_vonMises(sigma_a.size());
+	std::vector<std::vector<double>> Sigma_a_vonMises(sigma_a.size());
 
-	for (int i = 0; i < n.size(); i++) {
+	for (int i = 0; i < sigma_a.size(); i++) {
 
-		Sigma_a_vonMises[i] = calcVonMises(sigma_a[i].Stresses);
+		Sigma_a_vonMises[i].resize(sigma_a[i].size());
+
+		for (int j = 0; j < sigma_a[i].size(); j++) {
+
+			Sigma_a_vonMises[i][j] = calcVonMises(sigma_a[i][j].Stresses);
+
+		}
 
 	}
 
-	Eigen::VectorXd sum = Eigen::VectorXd::Zero(24);
+	Eigen::VectorXd sum = Eigen::RowVectorXd::Zero(24);
 	for (int i = 0; i < Omega_k.size(); i++) {
-		sum += dD_PN_k_dDe(i, p, x, Omega_k, damage)*
-			(-dDe_dsigma_a_i(Sut, bf, Sf, Sigma_a_vonMises, sigma_m, cycle, n)*calc_DsigmaVM_Dsigma_a(sigma_a[i]).transpose()*ni_s(x[i].rho)*E*std::pow(x[i].rho, p)*(K_mat()*B_mat(0, 0, 0).transpose()).transpose() +
-			dDe_dsigma_m_i(Sut, bf, Sf, Sigma_a_vonMises, sigma_m, cycle, n)*dsigma_m_i_dsigma_m_i_vec()*E*std::pow(x[i].rho, p)*(K_mat()*B_mat(0, 0, 0).transpose()).transpose());
+		int e_id = Omega_k[i];
+		if (cycle >= sigma_a[e_id].size()) {
+			continue;
+		}
+		//		std::cout << (calc_DsigmaVM_Dsigma_a(sigma_a[e_id][cycle]).transpose()*(K_mat()*B_mat(0, 0, 0).transpose()).transpose()).rows() << " " << (calc_DsigmaVM_Dsigma_a(sigma_a[e_id][cycle]).transpose()*(K_mat()*B_mat(0, 0, 0).transpose()).transpose()).cols() << std::endl; //(1,24)
+		//		std::cout << dDe_dsigma_a_i(Sut, bf, Sf, Sigma_a_vonMises[e_id], sigma_m[e_id], cycle, n) << std::endl;
 
+
+		sum += dD_PN_k_dDe(e_id, p, x, Omega_k, damage) *
+			(-dDe_dsigma_a_i(Sut, bf, Sf, Sigma_a_vonMises[e_id], sigma_m[e_id], cycle, n)*calc_DsigmaVM_Dsigma_a(sigma_a[e_id][cycle]).transpose()*ni_s(x[e_id].rho)*E*std::pow(x[e_id].rho, p)*(K_mat()*B_mat(0, 0, 0).transpose()).transpose() +
+				dDe_dsigma_m_i(Sut, bf, Sf, Sigma_a_vonMises[e_id], sigma_m[e_id], cycle, n)*dsigma_m_i_dsigma_m_i_vec()*E*std::pow(x[e_id].rho, p)*(K_mat()*B_mat(0, 0, 0).transpose()).transpose());
+	
+	
+	
+		if (e_id == 9) {
+			std::cout<<sum / 2 << std::endl;
+		}
+	
 	}
 
 
 
 	sum = sum / 2;
-	return (K_mat()*sum).transpose();
+
+	return sum.transpose();
 
 }
 
 //calculate fatigue derivatives for all targets
-std::vector<double> full_dD_PN_k_dgamma_e(std::vector<designVariable> &x, std::vector<std::vector<int>> Omega_k, std::vector<int> n, double p, std::vector<Eigen::VectorXd> u_max, std::vector<Eigen::VectorXd> u_min, std::vector<std::vector<Stress>> &sigma_a, std::vector<double> &damage, double Sut, double bf, double Sf, std::vector<std::vector<double>> &sigma_m, double E, std::vector<std::vector<double>> &nodes,double r0) {
+std::vector<double> full_dD_PN_k_dgamma_e(std::vector<designVariable> &x, std::vector<std::vector<int>> Omega_k, std::vector<int> n, double p, std::vector<std::vector<Eigen::VectorXd>> u_max, std::vector<std::vector<Eigen::VectorXd>> u_min, std::vector<std::vector<Stress>> &sigma_a, std::vector<double> &damage, double Sut, double bf, double Sf, std::vector<std::vector<double>> &sigma_m, double E, std::vector<std::vector<double>> &nodes,double r0) {
 
-	std::vector<double> Sigma_a_vonMises(sigma_a.size());
+	std::vector<std::vector<double>> Sigma_a_vonMises(sigma_a.size());
 
 	for (int i = 0; i < sigma_a.size(); i++) {
 
-		Sigma_a_vonMises[i] = calcVonMises(sigma_a[i].Stresses);
+		Sigma_a_vonMises[i].resize(sigma_a[i].size());
+
+		for (int j = 0; j < sigma_a[i].size(); j++) {
+
+			Sigma_a_vonMises[i][j] = calcVonMises(sigma_a[i][j].Stresses);
+
+		}
 
 	}
 	
-	std::vector<double> dD_PN_k_dgamma_e_full;
-
-	int nCycle = n.size();
+	std::vector<double> dD_PN_k_dgamma_e_full(x.size(),0);
 
 	double totSum = 0;
 
@@ -669,20 +748,50 @@ std::vector<double> full_dD_PN_k_dgamma_e(std::vector<designVariable> &x, std::v
 
 	for (int j = 0; j < Omega_k.size(); j++) {
 
+		int maxCycle = sigma_a[Omega_k[j][0]].size(); // find largest cycle in group
+		
+		for (int k = 1; k < Omega_k[j].size(); k++) {
 
-		for (int i = 0; i < nCycle; i++) {
+			if (sigma_a[Omega_k[j][k]].size() > maxCycle) {
 
-			sum2 = - Lambda_max_i(p,x,Omega_k[j],sigma_a,damage, Sut,bf,Sf,sigma_m,E,i,n).dot(u_max[i].transpose()) - Lambda_min_i(p, x, Omega_k[j], sigma_a, damage, Sut, bf, Sf, sigma_m, E, i, n).dot(u_min[i]);
+				maxCycle = sigma_a[Omega_k[j][k]].size();
+
+			}
+
+		}
+
+		for (int i = 0; i < maxCycle; i++) {
+
+			Eigen::VectorXd Lambda_Max_i_vec =
+				Lambda_max_i(p, x, Omega_k[j], sigma_a, damage, Sut, bf, Sf, sigma_m, E, i, n);
+			Eigen::VectorXd Lambda_Min_i_vec =
+				Lambda_min_i(p, x, Omega_k[j], sigma_a, damage, Sut, bf, Sf, sigma_m, E, i, n);
 
 			for (int k = 0; k < Omega_k[j].size(); k++) {
 
+				if (sigma_a[Omega_k[j][k]].size() < i+1) {
+					continue;
+				}
+
 				int e_id = Omega_k[j][k];
 
-				dD_PN_k_dgamma_e_full[k] += dD_PN_k_dDe(e_id,p,x,Omega_k[j],damage)*
-					(dDe_dsigma_a_i(Sut,bf,Sf,Sigma_a_vonMises ,sigma_m,i,n)*calc_DsigmaVM_Dsigma_a(sigma_a[i]).dot(dsigma_a_i_vec_dgamma_e(e_id,p,x,u_max[i],u_min[i],E))
-					+ dDe_dsigma_m_i(Sut,bf,Sf,Sigma_a_vonMises,sigma_m,i,n) * dsigma_m_i_dsigma_m_i_vec().dot(dsigma_m_i_vec_dgamma_e(e_id,p,x,u_max[i],u_min[i])));
+
+				if (e_id == 9) {
+
+				//std::cout <<"cycle: "<<i<<"\n"<< dsigma_m_i_vec_dgamma_e(e_id, p, x, u_max[e_id][i], u_min[e_id][i]) << std::endl; //(6,1)
+				//std::cout << "cycle: " << i << "\n" << (calc_DsigmaVM_Dsigma_a(sigma_a[e_id][i]).dot(dsigma_a_i_vec_dgamma_e(e_id, p, x, u_max[e_id][i], u_min[e_id][i], E)))<< std::endl;
+				//std::cout << "cycle: " << i << "\n" << std::pow(x[e_id].rho, p - 1)*p*(Lambda_Max_i_vec.dot(u_max[e_id][i]) + Lambda_Min_i_vec.dot(u_min[e_id][i])) << std::endl;
+				//std::cout << "cycle: " << i <<"\n" << Lambda_Min_i_vec << std::endl;
+
+				}
 			
-				dD_PN_k_dgamma_e_full[k] += std::pow(x[e_id].rho, p - 1)*p*sum2;
+			
+				dD_PN_k_dgamma_e_full[e_id] += dD_PN_k_dDe(e_id,p,x,Omega_k[j],damage)*
+					(dDe_dsigma_a_i(Sut,bf,Sf,Sigma_a_vonMises[e_id] ,sigma_m[e_id] ,i,n)*calc_DsigmaVM_Dsigma_a(sigma_a[e_id][i]).dot(dsigma_a_i_vec_dgamma_e(e_id,p,x,u_max[e_id][i],u_min[e_id][i],E))
+					+ dDe_dsigma_m_i(Sut,bf,Sf,Sigma_a_vonMises[e_id] ,sigma_m[e_id] ,i,n) * dsigma_m_i_dsigma_m_i_vec().dot(dsigma_m_i_vec_dgamma_e(e_id,p,x,u_max[e_id][i],u_min[e_id][i])));
+			
+
+				dD_PN_k_dgamma_e_full[e_id] -= std::pow(x[e_id].rho, p - 1)*p*(Lambda_Max_i_vec.dot(u_max[e_id][i])+ Lambda_Min_i_vec.dot(u_min[e_id][i]));
 			}
 
 		}
@@ -691,7 +800,7 @@ std::vector<double> full_dD_PN_k_dgamma_e(std::vector<designVariable> &x, std::v
 
 			int e_id = Omega_k[j][k];
 
-			dD_PN_k_dgamma_e_full[k] += dD_PN_k_dgamma_e(e_id, x, Omega_k[j], p, damage, r0, nodes);
+			dD_PN_k_dgamma_e_full[e_id] += dD_PN_k_dgamma_e(e_id, x, Omega_k[j], p, damage, r0, nodes);
 	
 		}
 

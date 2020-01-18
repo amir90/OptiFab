@@ -33,7 +33,6 @@ std::vector<size_t> sort_indexes(const std::vector<T> &v) {
 	// initialize original index locations
 	std::vector<size_t> idx(v.size());
 	std::iota(idx.begin(), idx.end(), 0);
-
 	// sort indexes based on comparing values in v
 	// using std::stable_sort instead of std::sort
 	// to avoid unnecessary index re-orderings
@@ -65,12 +64,19 @@ int main() {
 	char *argv[1] = { (char*)"Something" };
 
 	//initialize voxel parameters
-	int numOfVoxelsX =30;
-	int numOfVoxelsY = 10;
-	int numOfVoxelsZ = 1;
+	int numOfVoxelsX =100;
+	int numOfVoxelsY = 50;
+	int numOfVoxelsZ = 30;
 	float dx = 0.001; // size
 	int NeighbourLayers = 1;
 	float r0 = 1.5*dx*NeighbourLayers;
+
+	std::set < std::pair<int, Eigen::Vector3f>, comp> forceVertexIdSet;
+
+	std::set < std::pair<int, Eigen::Vector3f>, comp> forceVertexIdSet2; //for NSGAIII test
+
+	std::set<int> constraintVertexIdSet;
+
 
 	//declare geometry parameters
 	std::vector<designVariable> x;
@@ -79,15 +85,147 @@ int main() {
 
 	create_mesh(nodes, x,  numOfVoxelsX,  numOfVoxelsY,  numOfVoxelsZ,dx);
 
+	getBCforVoxelTest(x, nodes, numOfVoxelsX, numOfVoxelsY, numOfVoxelsZ,forceVertexIdSet, constraintVertexIdSet);
+
+
+	double change = 1000;
+
+	int power = 3;
+
+	//initialize for compliance optimizer
+
+	double* dc = new double[x.size()];
+	double V_allowed = 0.3*numOfVoxelsX*numOfVoxelsY*numOfVoxelsZ;
+	double* xnew = new double[x.size()];
+	double* dg = new double[x.size()];
+	double* g = new double[1];
+	double *xmin = new double[x.size()];
+	double *xmax = new double[x.size()];
+	double* dc_filtered = new double[x.size()];
+	MMASolver* mma = new MMASolver(x.size(), 1);
+
+
+	g[0] = -V_allowed;
+	for (int i = 0; i < x.size(); i++) {
+		dg[i] = 1;
+		xmin[i] = 0.001;
+		xmax[i] = 1;
+		g[0] += x[i].value;
+		xnew[i] = x[i].value;
+	}
+
+	double E = 70000000000;
+
+	std::vector<int> freeDOF;
+	freeDOF.resize(nodes.size());
+	int ind = 0; //number of free nodes
+	for (int i = 0; i < freeDOF.size(); i++) {
+
+		if (constraintVertexIdSet.find(i) == constraintVertexIdSet.end()) {
+			//if (constraints.find(i) == constraints.end()) {
+
+			freeDOF[i] = ind;
+			ind++;
+		}
+		else {
+
+			freeDOF[i] = -1;
+		}
+
+	}
+
+	//int numOfFixed = nodes.size() - ind; //number of fixed nodes
+
+
+	Eigen::VectorXd f(3 * ind);
+
+	for (int j = 0; j < 3 * ind; j++) {
+		f(j) = 0;
+	}
+
+	for (auto j = forceVertexIdSet.begin(); j != forceVertexIdSet.end(); j++) {
+		int tempForceid = freeDOF[j->first] * 3;
+		f[tempForceid + 0] = j->second[0];// force[temp_f].second[0];
+		f[tempForceid + 1] = j->second[1];//force[temp_f].second[1];
+		f[tempForceid + 2] = j->second[2]; //force[temp_f].second[2];//
+
+	}
+
+//	SpMat K_global= build_global_stiffness_matrix(x, nodes.size(), K_mat(), power, freeDOF,ind);
+
+	for (int iter = 0; iter < 30; iter++) {
+
+		calc_rho(nodes, x, -1, dx, numOfVoxelsX, numOfVoxelsY, numOfVoxelsZ, r0);
+
+		Eigen::VectorXd u_temp = doFEM(nodes, x, forceVertexIdSet, constraintVertexIdSet, dx, E);
+		/*
+		//for debug
+		for (int i = 0; i < nodes.size(); i++) {
+
+			nodes[i][0] += u_temp[3*i+0]*50; nodes[i][1] += u_temp[3 * i + 1]*50; nodes[i][2] += u_temp[3 * i + 2]*50;
+
+		}
+
+		makeMesh(x, nodes, mask);
+
+		return 1;
+		*/
+		//std::cout << u_temp << std::endl;
+		Eigen::VectorXd displacement(24);
+		for (int i = 0; i < x.size(); i++) {
+
+
+			displacement(0) = u_temp[x[i].nodeIdx[0] * 3]; displacement(1) = u_temp[x[i].nodeIdx[0] * 3 + 1]; displacement(2) = u_temp[x[i].nodeIdx[0] * 3 + 2];
+			displacement(3) = u_temp[x[i].nodeIdx[1] * 3]; displacement(4) = u_temp[x[i].nodeIdx[1] * 3 + 1]; displacement(5) = u_temp[x[i].nodeIdx[1] * 3 + 2];
+			displacement(6) = u_temp[x[i].nodeIdx[2] * 3]; displacement(7) = u_temp[x[i].nodeIdx[2] * 3 + 1]; displacement(8) = u_temp[x[i].nodeIdx[2] * 3 + 2];
+			displacement(9) = u_temp[x[i].nodeIdx[4] * 3]; displacement(10) = u_temp[x[i].nodeIdx[4] * 3 + 1]; displacement(11) = u_temp[x[i].nodeIdx[4] * 3 + 2];
+			displacement(12) = u_temp[x[i].nodeIdx[3] * 3]; displacement(13) = u_temp[x[i].nodeIdx[3] * 3 + 1]; displacement(14) = u_temp[x[i].nodeIdx[3] * 3 + 2];
+			displacement(15) = u_temp[x[i].nodeIdx[6] * 3]; displacement(16) = u_temp[x[i].nodeIdx[6] * 3 + 1]; displacement(17) = u_temp[x[i].nodeIdx[6] * 3 + 2];
+			displacement(18) = u_temp[x[i].nodeIdx[5] * 3]; displacement(19) = u_temp[x[i].nodeIdx[5] * 3 + 1]; displacement(20) = u_temp[x[i].nodeIdx[5] * 3 + 2];
+			displacement(21) = u_temp[x[i].nodeIdx[7] * 3]; displacement(22) = u_temp[x[i].nodeIdx[7] * 3 + 1]; displacement(23) = u_temp[x[i].nodeIdx[7] * 3 + 2];
+
+			dc[i] = -E*power * std::pow(x[i].value, power - 1)* displacement.transpose()*K_mat()*displacement;
+		//	std::cout << dc[i] << std::endl;
+
+		}
+
+		change = optimizeCompliance(xnew, dg, g, dc, xmin, xmax, dc_filtered, V_allowed, mma, nodes, x, dx,
+			numOfVoxelsX, numOfVoxelsY, numOfVoxelsZ, r0);
+
+		std::cout << "iter: " << iter <<" g: "<<g[0]<< std::endl;
+
+	}
+
+	std::cout << nodes.size() << std::endl;
+	std::cout << "test forces and constraints" << std::endl;
+	std::cout << forceVertexIdSet.size() << std::endl;
+	std::cout << forceVertexIdSet.begin()->first << " " << forceVertexIdSet.begin()->second << std::endl; 
+	std::cout << std::next(forceVertexIdSet.begin(),1)->first <<" "<< std::next(forceVertexIdSet.begin(), 1)->second<< std::endl;
+	std::cout << constraintVertexIdSet.size() << std::endl;
+
+
+
+//	for (int i = 0; i < nodes.size(); i++) {
+
+//		nodes[i][0] += u_temp(3 * i + 0) * 100; nodes[i][1] += u_temp(3 * i + 1) * 100; nodes[i][2] += u_temp(3 * i + 2) * 100;
+
+//	}
+
+	makeMesh(x, nodes,mask);
+
+	std::cout << "done making surface mesh" << std::endl;
+
+	return 1;
+
 	//voxelize("assets/beam.obj", x, 5, 1, nodes);
 
 	std::cout << "done creating voxel mesh" << std::endl;
 
-	
+	bool renderFlag = false; //render or don't render with libigl
 
 	//base material properties (Aluminum)
 	double ni = 0.3;
-	double E = 70000000000;
+	//double E = 70000000000;
 	double density = 2800;
 	double allowableStress = 320000000;
 
@@ -105,12 +243,6 @@ int main() {
 
 	//constraint and force selection on voxel grid by mouse input
 
-	std::set < std::pair<int, Eigen::Vector3f>, comp> forceVertexIdSet;
-
-	std::set < std::pair<int, Eigen::Vector3f>, comp> forceVertexIdSet2; //for NSGAIII test
-
-	std::set<int> constraintVertexIdSet;
-	
 	static bool boolVariable = true;
 	static bool planeVariable = true;
 	static float forceX = 0;
@@ -122,7 +254,7 @@ int main() {
 	int optimizerFlag = -1;
 	
 	viewer.callback_mouse_down =
-		[&V, &F, &forceVertexIdSet, &constraintVertexIdSet, &numOfVoxelsX,&numOfVoxelsY,&numOfVoxelsZ, &x](igl::opengl::glfw::Viewer& viewer, int, int)->bool
+		[&V, &F, &forceVertexIdSet, &constraintVertexIdSet, &numOfVoxelsX,&numOfVoxelsY,&numOfVoxelsZ, &x, &nodes](igl::opengl::glfw::Viewer& viewer, int, int)->bool
 	{
 		int fid;
 		Eigen::Vector3f bc; //holds the hit position in barycentric coordinates
@@ -132,6 +264,8 @@ int main() {
 		if (igl::unproject_onto_mesh(Eigen::Vector2f(x_Ray, y), viewer.core.view,
 			viewer.core.proj, viewer.core.viewport, V, F, fid, bc))
 		{
+			bc << 1, 0, 0;
+			fid = 0;
 			std::cout << V.row(F(fid, 1)) << std::endl;
 			Eigen::MatrixXd V_point(1, 3), endPoint(1, 3), colorPointConstraints(1, 3), colorPointForces(1, 3);
 			colorPointConstraints.row(0) = Eigen::Vector3d(1, 0, 0);
@@ -156,7 +290,9 @@ int main() {
 					planeInd = 1;
 				}
 			}
-			if (bc(selectedV) > 0.6 || planeInd > -1) {
+			if (1==1 || bc(selectedV) > 0.6 || planeInd > -1) {
+				planeInd = 1;
+				planeVariable == true;
 				viewer.data().clear();
 				std::pair<int, Eigen::Vector3f> tempForce;
 				int numOfVoxelsinPlane=0;
@@ -208,6 +344,13 @@ int main() {
 								constraintVertexIdSet.insert(tempForce.first);
 								forceVertexIdSet.erase(tempForce);
 								std::cout << "got here1" << std::endl;
+								std::pair<int, Eigen::Vector3f> tempForce;
+								tempForce.first = x[0].nodeIdx[0];
+								tempForce.second = Eigen::Vector3f(0, -10, 0);
+								forceVertexIdSet.insert(tempForce);
+								tempForce.first = x[0].nodeIdx[3];
+								tempForce.second = Eigen::Vector3f(0, -10, 0);
+								forceVertexIdSet.insert(tempForce);
 							}
 							else {
 								if (!planeVariable) {
@@ -231,8 +374,6 @@ int main() {
 
 						}
 
-						std::cout << nodecounter << std::endl;
-
 					}
 
 					numOfVoxelsinPlane--;
@@ -250,25 +391,34 @@ int main() {
 
 				}
 
-				//draw points and lines (for forces)
-				for (auto j = forceVertexIdSet.begin(); j != forceVertexIdSet.end(); j++) {
-					V_point.row(0) = V.row(j->first);
-					endPoint.row(0) = V.row(j->first) + j->second.cast<double>().transpose().normalized();
-					viewer.data().add_points(V_point, colorPointForces);
-					viewer.data().add_edges(V_point, endPoint, colorPointForces);
-				}
-				for (auto j = constraintVertexIdSet.begin(); j != constraintVertexIdSet.end(); j++) {
-					V_point.row(0) = V.row(*j);
-					viewer.data().add_points(V_point, colorPointConstraints);
-				}
+
 			}
 			// Show mesh
 			viewer.data().set_mesh(V, F);
 			viewer.data().show_lines = true;
 
-
 			return true;
 		}
+		Eigen::RowVector3d V_point(3), endPoint(3), colorPointConstraints(3), colorPointForces(3);
+		colorPointConstraints.row(0) = Eigen::Vector3d(1, 0, 0);
+		colorPointForces.row(0) = Eigen::Vector3d(0, 1, 0);
+		//draw points and lines (for forces)
+		for (auto j = forceVertexIdSet.begin(); j != forceVertexIdSet.end(); j++) {
+			double x = nodes[j->first][0]; double y = nodes[j->first][1]; double z = nodes[j->first][2];
+	//		double x = nodes[j->first][0]; double y = nodes[j->first][1]; double z = nodes[j->first][2];
+			V_point<< x, y, z;
+		//	endPoint<< nodes[(j->first) + j->second.cast<double>().transpose().normalized();
+			viewer.data().add_points(V_point, colorPointForces);
+//			viewer.data().add_edges(V_point, endPoint, colorPointForces);
+		}
+		for (auto j = constraintVertexIdSet.begin(); j != constraintVertexIdSet.end(); j++) {
+			double x = nodes[*j][0]; double y = nodes[*j][1]; double z = nodes[*j][2];
+			V_point << x, y, z;
+			viewer.data().add_points(V_point, colorPointConstraints);
+		}
+		// Show mesh
+	//	viewer.data().set_mesh(V, F);
+		viewer.data().show_lines = true;
 		return false;
 	};
 	std::cout << R"(Usage:
@@ -305,9 +455,9 @@ int main() {
 		{
 
 			viewer.data().clear();
-			create_mesh(nodes, x, numOfVoxelsX, numOfVoxelsY, numOfVoxelsZ, dx);
-			forceVertexIdSet.clear();
-			constraintVertexIdSet.clear();
+		//	create_mesh(nodes, x, numOfVoxelsX, numOfVoxelsY, numOfVoxelsZ, dx);
+		//	forceVertexIdSet.clear();
+		//	constraintVertexIdSet.clear();
 			remove("C:\\Users\\barda\\source\\repos\\Project1\\x64\\Release\\mesh.obj");
 			makeSurfaceMesh3(x, nodes); //writes mesh to file "finalObject.obj"
 			igl::readOBJ("mesh.obj", V, F);
@@ -454,14 +604,15 @@ int main() {
 	
 	viewer.plugins.push_back(&menu);
 
-	double change = 1000;
+	//double change = 1000;
 
-	int power = 3;
+	//int power = 3;
 
 	//initialize for compliance optimizer
 	
-	double* dc = new double[x.size()];
-	
+	//double* dc = new double[x.size()];
+	//double V_allowed = 0.3*numOfVoxelsX*numOfVoxelsY*numOfVoxelsZ;
+	/*
 	double* xnew = new double[x.size()];
 	double* dg = new double[x.size()];
 	double* g = new double[1];
@@ -470,7 +621,7 @@ int main() {
 	double* dc_filtered = new double[x.size()];
 	MMASolver* mma = new MMASolver(x.size(), 1);
 	
-	double V_allowed = 0.3*numOfVoxelsX*numOfVoxelsY*numOfVoxelsZ;
+
 
 	g[0] = -V_allowed;
 	for (int i = 0; i < x.size(); i++) {
@@ -480,21 +631,21 @@ int main() {
 		g[0] += x[i].value;
 		xnew[i] = x[i].value;
 	}
-
+	*/
 	bool animation_flag = false;
 
 	Eigen::MatrixXd disp_test;
-	/*
+	
 	//initialize for stress optimizer
 	int C = 2; //number of stress groups
 	double* df = new double[x.size()];
-	double* xnew = new double[x.size()];
-	double* dg = new double[x.size()*C];
-	double* g = new double[C];
-	double *xmin = new double[x.size()];
-	double *xmax = new double[x.size()];
-	double* dc_filtered = new double[x.size()];
-	MMASolver* mma = new MMASolver(x.size(), 1);
+	//double* xnew = new double[x.size()];
+	//double* dg = new double[x.size()*C];
+	//double* g = new double[C];
+	//double *xmin = new double[x.size()];
+	//double *xmax = new double[x.size()];
+	//double* dc_filtered = new double[x.size()];
+	//MMASolver* mma = new MMASolver(x.size(), 1);
 
 	for (int i = 0; i < x.size(); i++) {
 		xmin[i] = 0.001;
@@ -504,7 +655,7 @@ int main() {
 			dg[i*C + j]=0;
 		}
 	}
-	*/
+	
 	viewer.core.is_animating = false;
 
 	int iter2 = 0;
@@ -710,6 +861,10 @@ int main() {
 			std::cout << "max displacement: " << u.maxCoeff() << std::endl;
 
 			auto StressVec = calcStresses(ni, E, nodes, x, u, dx);
+
+
+			optimizeStress(StressVec, u, C, power, dx, change, nodes, x, xnew, dg, g, df, xmin, xmax, density, E, ni, mma, 1, r0);
+
 			rhoFaces.resize(F.rows());
 			std::cout << F.rows() << std::endl;
 			int ind = 0;
@@ -717,7 +872,7 @@ int main() {
 				if (x[i].value>0.001) {
 				std::cout <<  "stress at " <<i<<" : "<< calcVonMises(StressVec[i].Stresses) << std::endl;
 				for (int j = 0; j < 12; j++) {
-					rhoFaces(ind * 12 + j) = calcVonMises(StressVec[i].Stresses);
+					rhoFaces(ind * 12 + j) = x[i].value;//calcVonMises(StressVec[i].Stresses);
 					}
 				ind++;
 				}
@@ -758,19 +913,13 @@ int main() {
 
 				std::vector<std::vector<Stress>> sigma_a;
 
-				std::vector<Eigen::VectorXd> u_max;
+				std::vector<std::vector<Eigen::VectorXd>> u_max(targets.size());
 
-				std::vector<Eigen::VectorXd> u_min;
+				std::vector<std::vector<Eigen::VectorXd>> u_min(targets.size());
 
 				ClacStressTimeHistory(targets, x, 0.001, 0.001, power, forceVertexIdSet, dx, E, nodes, constraintVertexIdSet, u_dot_0, u0, 0.0001, steps, sigma_m, sigma_a, disp_test,u_max,u_min);
 
-				std::cout << "number of u_max: " << u_max.size() <<"/"<< sigma_a.size() << std::endl;
-
-				for (auto t : u_max) {
-
-					std::cout << t << std::endl;
-
-				}
+				std::cout << "number of u_max: " << u_max[3].size() <<"/"<< sigma_a[3].size() << std::endl;
 
 			//	std::cout << "calculated stress histories" << std::endl;
 				if (debug_flag) {
@@ -829,31 +978,22 @@ int main() {
 
 				for (int i = 0; i < K; i++) {
 
-					Omega_k.push_back(std::vector<int>(sorted.begin() + std::floor(i / K * sorted.size()), sorted.begin() + std::floor((i+1) / K * sorted.size())));
+					Omega_k.push_back(std::vector<int>(sorted.begin() + std::ceil((float)i / K * sorted.size()), sorted.begin() + std::ceil((float)(i+1)/K * sorted.size())));
 
+					std::cout<<Omega_k[i].size() << std::endl;
 				}
+
 				
-				//test sorting - passed
-				/*
-				std::cout << "testing sorting" << std::endl;
-				for (int i = 0; i < damage.size(); i++) {
-
-					std::cout << "id of sorted: " << sorted[i] << ", damage of sorted: " << damage[sorted[i]] << std::endl;
-
-				}
-				*/
-
 				std::vector<int> n(sigma_a.size(), ni);
 
 				std::vector<double> derivs = full_dD_PN_k_dgamma_e(x, Omega_k, n, power, u_max, u_min, sigma_a, damage, Sut, bf, Sf,sigma_m, E, nodes, r0);
 
-				
 
 				for (int i = 0; i < x.size(); i++) {
-
+					std::cout << derivs[i] << std::endl;
 			//		std::cout << "element: " << i << ", Damage: " << x[i].rho << std::endl;
 					for (int j = 0; j < 12; j++) {
-						rhoFaces(i * 12 + j) = x[i].rho;
+						rhoFaces(i * 12 + j) = derivs[i];//x[i].rho;
 
 					}
 				}

@@ -177,7 +177,7 @@ std::vector<Stress> calcStresses(double ni, double E, std::vector<std::vector<do
 
 std::vector<Stress> calcStresses(double ni, double E, std::vector<std::vector<double>> const nodes, std::vector<designVariable>  const x, Eigen::VectorXd  u, float dx, std::vector<int> targets) {
 
-	std::cout << "calculating stress field" << std::endl;
+	//std::cout << "calculating stress field" << std::endl;
 	//define stress-index pair vector
 	std::vector<Stress> stressVec;
 	stressVec.resize(x.size());
