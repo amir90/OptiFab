@@ -510,7 +510,6 @@ Eigen::VectorXd doFEM(std::vector<std::vector<double>> const &nodes, std::vector
 
 	int numOfFixed = nodes.size() - ind; //number of fixed nodes
 
-
 	Eigen::VectorXd f(3 * ind), u(nodes.size() * 3);
 
 	for (int j = 0; j < 3 * ind; j++) {
@@ -626,14 +625,14 @@ void getBCforVoxelTest(std::vector<designVariable> &x, std::vector<std::vector<d
 	//		tempForce.second = Eigen::Vector3f(forceX, forceY, forceZ);
 		numOfVoxelsinPlane = 1;
 		nodecounter = 1;
-		std::cout << "testing end:" << std::endl;
+	//	std::cout << "testing end:" << std::endl;
 	}
 
 	int currVoxel = startVoxel;
 
 	while (numOfVoxelsinPlane) { //hack for selecting plane or individual vertices
 
-		std::cout << "current voxel is: " << currVoxel << std::endl;
+	//	std::cout << "current voxel is: " << currVoxel << std::endl;
 
 		while (nodecounter > 0) {
 
@@ -644,11 +643,11 @@ void getBCforVoxelTest(std::vector<designVariable> &x, std::vector<std::vector<d
 			nodecounter--;
 
 			if (true) { //constraints are on - delete forces
-				std::cout << "got here" << std::endl;
+			//	std::cout << "got here" << std::endl;
 				if (constraintVertexIdSet.find(tempForce.first) == constraintVertexIdSet.end()) {
 					constraintVertexIdSet.insert(tempForce.first);
 					forceVertexIdSet.erase(tempForce);
-					std::cout << "got here1" << std::endl;
+			//		std::cout << "got here1" << std::endl;
 					std::pair<int, Eigen::Vector3f> tempForce;
 			//		tempForce.first = x[0].nodeIdx[0];
 			//		tempForce.second = Eigen::Vector3f(0, -10, 0);
@@ -666,10 +665,10 @@ void getBCforVoxelTest(std::vector<designVariable> &x, std::vector<std::vector<d
 			}
 			else {
 				if (forceVertexIdSet.find(tempForce) == forceVertexIdSet.end()) {
-					std::cout << "got here2" << std::endl;
+		//			std::cout << "got here2" << std::endl;
 					constraintVertexIdSet.erase(tempForce.first);
 					forceVertexIdSet.insert(tempForce);
-					std::cout << "got here3" << std::endl;
+		//			std::cout << "got here3" << std::endl;
 				}
 				else {
 					if (!planeVariable) {
@@ -694,7 +693,7 @@ void getBCforVoxelTest(std::vector<designVariable> &x, std::vector<std::vector<d
 		}
 		nodecounter = 4;
 
-		std::cout << "got to end of loop" << std::endl;
+//		std::cout << "got to end of loop" << std::endl;
 
 	}
 
@@ -726,29 +725,29 @@ void getBCforVoxelTest(std::vector<designVariable> &x, std::vector<std::vector<d
 	//		tempForce.second = Eigen::Vector3f(forceX, forceY, forceZ);
 		numOfVoxelsinPlane = 1;
 		nodecounter = 1;
-		std::cout << "testing end:" << std::endl;
+	//	std::cout << "testing end:" << std::endl;
 	}
 
 	 currVoxel = startVoxel;
 
 	while (numOfVoxelsinPlane) { //hack for selecting plane or individual vertices
 
-		std::cout << "current voxel is: " << currVoxel << std::endl;
+//		std::cout << "current voxel is: " << currVoxel << std::endl;
 
 		while (nodecounter > 0) {
 
 			if (planeVariable) {
 				tempForce.first = x[currVoxel].nodeIdx[vertexList[nodecounter - 1]];
-				tempForce.second = Eigen::Vector3f(0, -0.5, 0);
+				tempForce.second = Eigen::Vector3f(0, -1, 0);
 			}
 			nodecounter--;
 
 			if (false) { //constraints are on - delete forces
-				std::cout << "got here" << std::endl;
+//				std::cout << "got here" << std::endl;
 				if (constraintVertexIdSet.find(tempForce.first) == constraintVertexIdSet.end()) {
 					constraintVertexIdSet.insert(tempForce.first);
 					forceVertexIdSet.erase(tempForce);
-					std::cout << "got here1" << std::endl;
+//					std::cout << "got here1" << std::endl;
 				//	std::pair<int, Eigen::Vector3f> tempForce;
 					//		tempForce.first = x[0].nodeIdx[0];
 					//		tempForce.second = Eigen::Vector3f(0, -10, 0);
@@ -766,10 +765,10 @@ void getBCforVoxelTest(std::vector<designVariable> &x, std::vector<std::vector<d
 			}
 			else {
 				if (forceVertexIdSet.find(tempForce) == forceVertexIdSet.end()) {
-					std::cout << "got here2" << std::endl;
+//					std::cout << "got here2" << std::endl;
 					constraintVertexIdSet.erase(tempForce.first);
 					forceVertexIdSet.insert(tempForce);
-					std::cout << "got here3" << std::endl;
+//					std::cout << "got here3" << std::endl;
 				}
 				else {
 					if (!planeVariable) {
@@ -792,7 +791,7 @@ void getBCforVoxelTest(std::vector<designVariable> &x, std::vector<std::vector<d
 		}
 		nodecounter = 4;
 
-		std::cout << "got to end of loop" << std::endl;
+//		std::cout << "got to end of loop" << std::endl;
 
 	}
 

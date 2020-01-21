@@ -32,4 +32,5 @@ Eigen::VectorXd Lambda_min_i(double p, std::vector<designVariable> x, std::vecto
 
 std::vector<double> full_dD_PN_k_dgamma_e(std::vector<designVariable> &x, std::vector<std::vector<int>> Omega_k, std::vector<int> n, double p, std::vector<std::vector<Eigen::VectorXd>> u_max, std::vector<std::vector<Eigen::VectorXd>> u_min, std::vector<std::vector<Stress>> &sigma_a, std::vector<double> &damage, double Sut, double bf, double Sf, std::vector<std::vector<double>> &sigma_m, double E, std::vector<std::vector<double>> &nodes, double r0);
 
+double optimizeFatigue();
 

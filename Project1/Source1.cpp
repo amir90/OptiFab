@@ -64,9 +64,9 @@ int main() {
 	char *argv[1] = { (char*)"Something" };
 
 	//initialize voxel parameters
-	int numOfVoxelsX =100;
-	int numOfVoxelsY = 50;
-	int numOfVoxelsZ = 30;
+	int numOfVoxelsX =20;
+	int numOfVoxelsY = 20;
+	int numOfVoxelsZ = 1;
 	float dx = 0.001; // size
 	int NeighbourLayers = 1;
 	float r0 = 1.5*dx*NeighbourLayers;
@@ -92,25 +92,38 @@ int main() {
 
 	int power = 3;
 
+	int C = 3;
+
 	//initialize for compliance optimizer
 
 	double* dc = new double[x.size()];
 	double V_allowed = 0.3*numOfVoxelsX*numOfVoxelsY*numOfVoxelsZ;
 	double* xnew = new double[x.size()];
-	double* dg = new double[x.size()];
-	double* g = new double[1];
+	double* dg = new double[x.size()*C];
+	double* df = new double[x.size()];
+	double* g = new double[C];
 	double *xmin = new double[x.size()];
 	double *xmax = new double[x.size()];
 	double* dc_filtered = new double[x.size()];
 	MMASolver* mma = new MMASolver(x.size(), 1);
 
+	double density = 2800;
 
-	g[0] = -V_allowed;
+	double ni = 0.3;
+
+
+	//g[0] = -V_allowed;
 	for (int i = 0; i < x.size(); i++) {
-		dg[i] = 1;
+
+		for (int j = 0; j < C; j++) {
+			g[j] = 0;
+			dg[i*C+j] = 0;
+		}
+
 		xmin[i] = 0.001;
 		xmax[i] = 1;
-		g[0] += x[i].value;
+	//	g[0] += x[i].value;
+	//	dg[i] = 1;
 		xnew[i] = x[i].value;
 	}
 
@@ -153,11 +166,19 @@ int main() {
 
 //	SpMat K_global= build_global_stiffness_matrix(x, nodes.size(), K_mat(), power, freeDOF,ind);
 
-	for (int iter = 0; iter < 30; iter++) {
+	double delta = 0;
+
+	double deriv;
+
+	Eigen::VectorXd test_u = Eigen::VectorXd::Zero(nodes.size()*3);
+
+	for (int iter = 0; iter < 100; iter++) {
 
 		calc_rho(nodes, x, -1, dx, numOfVoxelsX, numOfVoxelsY, numOfVoxelsZ, r0);
 
 		Eigen::VectorXd u_temp = doFEM(nodes, x, forceVertexIdSet, constraintVertexIdSet, dx, E);
+
+		std::cout << "max FEM displacement: " << u_temp.maxCoeff() << std::endl;
 		/*
 		//for debug
 		for (int i = 0; i < nodes.size(); i++) {
@@ -170,8 +191,11 @@ int main() {
 
 		return 1;
 		*/
-		//std::cout << u_temp << std::endl;
+		std::cout << "g[0]: " << g[0] << std::endl;
+		/*
+
 		Eigen::VectorXd displacement(24);
+		
 		for (int i = 0; i < x.size(); i++) {
 
 
@@ -188,11 +212,40 @@ int main() {
 		//	std::cout << dc[i] << std::endl;
 
 		}
+		*/
 
-		change = optimizeCompliance(xnew, dg, g, dc, xmin, xmax, dc_filtered, V_allowed, mma, nodes, x, dx,
-			numOfVoxelsX, numOfVoxelsY, numOfVoxelsZ, r0);
+		//calculate discrete derivative constraints due to changing x[0].value, and compare to the analytical value.
 
-		std::cout << "iter: " << iter <<" g: "<<g[0]<< std::endl;
+		std::vector<Stress> Stresses = calcStresses(ni, E, nodes, x, u_temp, dx);
+
+		change = optimizeStress(Stresses, u_temp, C, power, dx, change, nodes, x,
+			xnew, dg, g, df, xmin, xmax, density, E, ni, mma, -1, r0);
+
+		if (iter == 0) {
+			deriv = dg[0];
+		}
+
+		std::cout << change << std::endl;
+
+		delta -= (g[0] * (0.5 - iter) * 2)/ 0.0000000001;
+
+		//test_u += u_temp * (0.5 - iter) * 2;
+
+	//	change = optimizeCompliance(xnew, dg, g, dc, xmin, xmax, dc_filtered, V_allowed, mma, nodes, x, dx,
+	//		numOfVoxelsX, numOfVoxelsY, numOfVoxelsZ, r0);
+
+	//	std::cout << "iter: " << iter <<" change: "<<change<< std::endl;
+
+	}
+
+	//std::cout <<"u_norm: "<< test_u.norm() <<" "<< test_u.minCoeff() <<" "<< test_u.maxCoeff()<< std::endl;
+
+	std::cout << "discrete derivative: : "<< delta << std::endl;
+	std::cout << "analytical derivative: : " << deriv << std::endl;
+
+	for (int i = 0; i < x.size(); i++) {
+
+		std::cout << x[i].value << std::endl;
 
 	}
 
@@ -224,9 +277,9 @@ int main() {
 	bool renderFlag = false; //render or don't render with libigl
 
 	//base material properties (Aluminum)
-	double ni = 0.3;
+//	double ni = 0.3;
 	//double E = 70000000000;
-	double density = 2800;
+//	double density = 2800;
 	double allowableStress = 320000000;
 
 	//Define and Initialize local stiffness matrix
@@ -637,8 +690,8 @@ int main() {
 	Eigen::MatrixXd disp_test;
 	
 	//initialize for stress optimizer
-	int C = 2; //number of stress groups
-	double* df = new double[x.size()];
+	//int C = 2; //number of stress groups
+	//double* df = new double[x.size()];
 	//double* xnew = new double[x.size()];
 	//double* dg = new double[x.size()*C];
 	//double* g = new double[C];
@@ -860,17 +913,17 @@ int main() {
 			
 			std::cout << "max displacement: " << u.maxCoeff() << std::endl;
 
-			auto StressVec = calcStresses(ni, E, nodes, x, u, dx);
+			//auto StressVec = calcStresses(ni, E, nodes, x, u, dx);
 
 
-			optimizeStress(StressVec, u, C, power, dx, change, nodes, x, xnew, dg, g, df, xmin, xmax, density, E, ni, mma, 1, r0);
+			//optimizeStress(StressVec, u, C, power, dx, change, nodes, x, xnew, dg, g, df, xmin, xmax, density, E, ni, mma, 1, r0);
 
 			rhoFaces.resize(F.rows());
 			std::cout << F.rows() << std::endl;
 			int ind = 0;
 			for (int i = 0; i < x.size(); i++) {
 				if (x[i].value>0.001) {
-				std::cout <<  "stress at " <<i<<" : "<< calcVonMises(StressVec[i].Stresses) << std::endl;
+//				std::cout <<  "stress at " <<i<<" : "<< calcVonMises(StressVec[i].Stresses) << std::endl;
 				for (int j = 0; j < 12; j++) {
 					rhoFaces(ind * 12 + j) = x[i].value;//calcVonMises(StressVec[i].Stresses);
 					}

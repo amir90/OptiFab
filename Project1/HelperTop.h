@@ -16,7 +16,7 @@ struct designVariable {
 	std::vector<int> rho_voxInd; //voxels which influence this voxel's rho
 	bool tunable = true; //integrate with voxel tunable parameter?
 	double rho = 0.5;//weighted value of element
-	Eigen::VectorXd displacements = Eigen::VectorXd::Zero(6);
+	Eigen::VectorXd displacements = Eigen::VectorXd::Zero(24);
 	//double displacements[24];
 	std::set<int> influencesVoxels; //voxels which this voxel influences
 	double sum_wj = 0;

@@ -566,7 +566,10 @@ void calc_rho(std::vector<std::vector<double>> const &nodes, std::vector<designV
 
 	for (int l = 0; l < x.size(); l++) { //for all voxels
 		x[l].rho = x[l].value;
+		x[l].influencesVoxels.insert(l);
 	}
+
+
 	return;
 
 		std::cout << "begin calculating rho" << std::endl;
@@ -620,6 +623,7 @@ void calc_rho(std::vector<std::vector<double>> const &nodes, std::vector<designV
 
 			//calc  rho
 			for (auto i = idxSet.begin(); i != idxSet.end(); i++) {
+
 	//			std::cout << "element " << l << " node: " << *i << std::endl;
 				designVariable temp = x[*i];
 				wj = (length({ temp.position[0] - x[l].position[0],temp.position[1] - x[l].position[1],temp.position[2] - x[l].position[2] }) - r0) / r0;

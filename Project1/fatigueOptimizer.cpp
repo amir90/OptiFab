@@ -2,6 +2,23 @@
 
 extern bool debug_flag;
 
+
+template <typename T>
+std::vector<size_t> sort_indexes(const std::vector<T> &v) {
+
+	// initialize original index locations
+	std::vector<size_t> idx(v.size());
+	std::iota(idx.begin(), idx.end(), 0);
+	// sort indexes based on comparing values in v
+	// using std::stable_sort instead of std::sort
+	// to avoid unnecessary index re-orderings
+	// when v contains elements of equal values 
+	std::stable_sort(idx.begin(), idx.end(),
+		[&v](size_t i1, size_t i2) {return v[i1] < v[i2]; });
+
+	return idx;
+}
+
 void updateMaxStresses(Eigen::VectorXd tempStress, Eigen::VectorXd &maxStress, Eigen::VectorXd &minStress) {
 
 	if (tempStress(0) > maxStress(0)) {
@@ -808,5 +825,28 @@ std::vector<double> full_dD_PN_k_dgamma_e(std::vector<designVariable> &x, std::v
 
 	return dD_PN_k_dgamma_e_full;
 	
+}
+
+double optimizeFatigue(std::vector<double> damages, int C) {
+
+	
+	//split damage to level C groups
+	auto sorted_ids = sort_indexes(damages);
+
+	int beginInd;
+
+	int endInd;
+
+	//for each damage group
+	for (int i = 0; i < C; i++) {
+			
+		//calculate lambdas
+
+
+		
+	}
+
+
+
 }
 

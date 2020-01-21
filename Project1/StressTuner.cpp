@@ -15,7 +15,7 @@ double calc_DSigmaPN_DSigmaVM(std::vector<Stress> const &stresses, int k, int be
 	//endInd - ending of partition
 	//p - power
 
-	float N = endInd - beginInd;
+	double N = endInd - beginInd;
 	double sum = 0;
 	for (int i = beginInd; i < endInd; i++) {
 		sum += std::pow(stresses[i].vonMises, p);
@@ -61,11 +61,13 @@ double calc_Drho_e_Dxb(int idx, int j, std::vector<designVariable> const &x, dou
 
 	//for debugging
 
-	//if (idx == j) {
+	if (idx == j) {
 		//	std::cout << "idx: " << idx << std::endl;
-//		return 1;
-//	}
-	//return 0;
+		return 1;
+	}
+	return 0;
+
+
 
 	auto pos_e = nodes[x[idx].varIdx];
 
@@ -98,7 +100,7 @@ double error(int n, double* x_new, double* x_old) {
 
 std::vector<Stress> calcStresses(double ni, double E, std::vector<std::vector<double>> const nodes, std::vector<designVariable>  const x, Eigen::VectorXd  u, float dx) {
 
-	std::cout << "calculating stress field" << std::endl;
+//	std::cout << "calculating stress field" << std::endl;
 	//define stress-index pair vector
 	std::vector<Stress> stressVec;
 	stressVec.resize(x.size());
@@ -151,7 +153,7 @@ std::vector<Stress> calcStresses(double ni, double E, std::vector<std::vector<do
 		//	numStresses[x[i].nodeIdx[j]] += 1;
 
 			stressVec[i].idx = i;
-			stressVec[i].Stresses = Elasticity * B_mat(0, 0, 0)*displacement/dx;
+			stressVec[i].Stresses = ni_s(x[i].rho)* Elasticity * B_mat(0, 0, 0)*displacement/dx;
 			stressVec[i].displacements = displacement;
 			stressVec[i].vonMises = calcVonMises(stressVec[i].Stresses);
 
@@ -227,7 +229,7 @@ std::vector<Stress> calcStresses(double ni, double E, std::vector<std::vector<do
 			//	numStresses[x[i].nodeIdx[j]] += 1;
 
 			stressVec[i].idx = i;
-			stressVec[i].Stresses = Elasticity * B_mat(0, 0, 0)*displacement / dx;
+			stressVec[i].Stresses = ni_s(x[i].rho)*Elasticity * B_mat(0, 0, 0)*displacement / dx;
 			stressVec[i].displacements = displacement;
 			stressVec[i].vonMises = calcVonMises(stressVec[i].Stresses);
 
@@ -250,7 +252,7 @@ std::vector<Stress> calcStresses(double ni, double E, std::vector<std::vector<do
 	return stressVec;
 }
 
-double optimizeStress(std::vector<Stress> stressVec, Eigen::VectorXd u, int C, int power, float dx, double change, std::vector<std::vector<double>> nodes, std::vector<designVariable>  x,
+double optimizeStress(std::vector<Stress> stressVec, Eigen::VectorXd u, int C, int power, float dx, double change, std::vector<std::vector<double>> &nodes, std::vector<designVariable>  &x,
 	double* xnew, double* dg, double* g, double* df, double* xmin, double *xmax, double density, double E, double ni, MMASolver* optimizer, int neighbourLayers,float r0) {
 
 	//Elasticity
@@ -282,10 +284,10 @@ double optimizeStress(std::vector<Stress> stressVec, Eigen::VectorXd u, int C, i
 
 	int deriv_Ind = 0;
 
-	for (int i = 0; i < x.size(); i++) {
+	for (int i = 0; i < x.size(); i++) { //build outside
 
-		Eigen::MatrixXd Ba = Eigen::MatrixXd::Zero(6, nodes.size() * 3);
-
+	//	Eigen::MatrixXd Ba = Eigen::MatrixXd::Zero(6, nodes.size() * 3);
+		/*
 		Ba.col(x[i].nodeIdx[0] * 3) = local_Ba.col(0);
 		Ba.col(x[i].nodeIdx[0] * 3 + 1) = local_Ba.col(1);
 		Ba.col(x[i].nodeIdx[0] * 3 + 2) = local_Ba.col(2);
@@ -317,7 +319,9 @@ double optimizeStress(std::vector<Stress> stressVec, Eigen::VectorXd u, int C, i
 		Ba.col(x[i].nodeIdx[7] * 3) = local_Ba.col(21);
 		Ba.col(x[i].nodeIdx[7] * 3 + 1) = local_Ba.col(22);
 		Ba.col(x[i].nodeIdx[7] * 3 + 2) = local_Ba.col(23);
+		*/
 
+		/*
 		Eigen::VectorXd displacement(24);
 		displacement(0) = u[x[i].nodeIdx[0] * 3]; displacement(1) = u[x[i].nodeIdx[0] * 3 + 1]; displacement(2) = u[x[i].nodeIdx[0] * 3 + 2];
 		displacement(3) = u[x[i].nodeIdx[1] * 3]; displacement(4) = u[x[i].nodeIdx[1] * 3 + 1]; displacement(5) = u[x[i].nodeIdx[1] * 3 + 2];
@@ -334,7 +338,7 @@ double optimizeStress(std::vector<Stress> stressVec, Eigen::VectorXd u, int C, i
 		stressVec[i].vonMises = calcVonMises(stressVec[i].Stresses);
 		stressVec[i].displacements = displacement;
 		x[i].displacements = displacement;
-
+		*/
 		if (x[i].tunable == false) {
 			continue;
 		}
@@ -345,36 +349,37 @@ double optimizeStress(std::vector<Stress> stressVec, Eigen::VectorXd u, int C, i
 		df[deriv_Ind] = dx*dx*dx*density; //mass of element
 
 		deriv_Ind++;
-
+		
 	}
 
 	//sort stresses
 
-	std::cout << "sorting stresses" << std::endl;
+//	std::cout << "sorting stresses" << std::endl;
 	std::sort(stressVec.begin(), stressVec.end(), compareByLength);
 
 	int beginInd = 0;
 
-	int endInd;
+	//int endInd = std::floor(((0 + 1)*stressVec.size()) / C); // begining and ending index for stress group in stress array
+
 
 	deriv_Ind = 0;
 
-	SpMat K_global_full = build_global_stiffness_matrix_full(x, KE, power, nodes);
+	SpMat K_global_full = build_global_stiffness_matrix_full(x, KE, power, nodes); //happens once per iteration
 	K_global_full = dx *E* K_global_full;
 
 	for (int i = 0; i < C; i++) { //i-th stress cluster
 
 	//full global stiffness matrix
 
+		int endInd = std::floor(((i + 1)*stressVec.size()) / C); // begining and ending index for stress group in stress array
+
+
 		Eigen::SparseMatrix<double> spMat;
 
 		Eigen::VectorXd lambda_i = Eigen::VectorXd::Zero(nodes.size() * 3);
 
-		Eigen::VectorXd  sum1 = Eigen::VectorXd::Zero(nodes.size() * 3);
-
 		Eigen::VectorXd  sum2 = Eigen::VectorXd::Zero(nodes.size() * 3);
 
-		double  sum3 = 0;
 
 		Eigen::SimplicialCholesky<SpMat> chol(K_global_full);
 
@@ -382,6 +387,9 @@ double optimizeStress(std::vector<Stress> stressVec, Eigen::VectorXd u, int C, i
 
 		for (int k = beginInd; k < endInd; k++) {
 			int idx = stressVec[k].idx;
+
+			g[i] += std::pow(stressVec[k].vonMises, power);
+
 
 			Eigen::VectorXd DsigmaVM_Dsigma_a(6);
 
@@ -421,28 +429,36 @@ double optimizeStress(std::vector<Stress> stressVec, Eigen::VectorXd u, int C, i
 
 			DsigmaVM_Dsigma_a = calc_DsigmaVM_Dsigma_a(stressVec[k]);
 
-			sum2 = sum2 + calc_DSigmaPN_DSigmaVM(stressVec, k, beginInd, endInd, power) * Ba.transpose()*Elasticity.transpose()*DsigmaVM_Dsigma_a;
+			sum2 = sum2 + std::pow(x[stressVec[k].idx].rho, 0.5)*calc_DSigmaPN_DSigmaVM(stressVec, k, beginInd, endInd, power) * Ba.transpose()*Elasticity.transpose()*DsigmaVM_Dsigma_a;
 		}
 
+		g[i] = std::pow((double)1.0 / (endInd - beginInd)*g[i], (double)1.0 / power) - allowableStress;
 		//calculate lambda_i (adjoint variable)
 		lambda_i = chol.solve(sum2);
 
-		std::cout << "begin calculating derivatives with respect to tunable DV" << std::endl;
+	//	std::cout << "begin calculating derivatives with respect to tunable DV" << std::endl;
 
 		for (int j = 0; j < x.size(); j++) { //derivative of stresses with respect to stress i
 
-			std::cout << "calculated :" << j << "/" << x.size() << std::endl;
+			double  sum3 = 0;
+
+			Eigen::VectorXd  sum1 = Eigen::VectorXd::Zero(nodes.size() * 3);
+
+			if (j % 100 == 0) {
+
+				std::cout << "calculated :" << j << "/" << x.size() << std::endl;
+			}
 
 			if (x[j].tunable == false) { continue; }
 
 			SpMat K_deriv((nodes.size()) * 3, (nodes.size()) * 3);
 
-			float sum4 = 0;
-
 			//build sparse matrix - the global stiffness derivative matrix
 			for (auto l = x[j].influencesVoxels.begin(); l != x[j].influencesVoxels.end(); l++) {
 
 				int voxelIdx = *l;
+
+				assert(voxelIdx == j);
 
 				// Assembly:
 				std::vector<T> coefficients;            // list of non-zeros coefficients
@@ -472,15 +488,24 @@ double optimizeStress(std::vector<Stress> stressVec, Eigen::VectorXd u, int C, i
 
 			}
 
-			endInd = std::floor(((i + 1)*stressVec.size()) / C); // begining and ending index for stress group in stress array
+	//		std::cout << "done sum1" << std::endl;
+
 
 			//build global Ba
 
 			for (int k = beginInd; k < endInd; k++) {
 				int idx = stressVec[k].idx;
 
-				Eigen::VectorXd DsigmaVM_Dsigma_a(6);
+				if (j != idx) {
+					if (x[j].influencesVoxels.find(idx) == x[j].influencesVoxels.end()) {
 
+						continue;
+
+					}
+				}
+
+				Eigen::VectorXd DsigmaVM_Dsigma_a(6);
+				
 				Eigen::MatrixXd Ba = Eigen::MatrixXd::Zero(6, nodes.size() * 3);
 
 				Ba.col(x[idx].nodeIdx[0] * 3) = local_Ba.col(0);
@@ -514,43 +539,35 @@ double optimizeStress(std::vector<Stress> stressVec, Eigen::VectorXd u, int C, i
 				Ba.col(x[idx].nodeIdx[7] * 3) = local_Ba.col(21);
 				Ba.col(x[idx].nodeIdx[7] * 3 + 1) = local_Ba.col(22);
 				Ba.col(x[idx].nodeIdx[7] * 3 + 2) = local_Ba.col(23);
-
+				
 				DsigmaVM_Dsigma_a = calc_DsigmaVM_Dsigma_a(stressVec[k]);
 
-				sum2 = sum2 + std::pow(x[stressVec[k].idx].rho, 0.5) *calc_DSigmaPN_DSigmaVM(stressVec, k, beginInd, endInd, power) * Ba.transpose()*Elasticity.transpose()*DsigmaVM_Dsigma_a;
+			//	sum2 = sum2 + std::pow(x[stressVec[k].idx].rho, 0.5) *calc_DSigmaPN_DSigmaVM(stressVec, k, beginInd, endInd, power) *Ba.transpose()*Elasticity.transpose()*DsigmaVM_Dsigma_a;
 
-				sum3 += calc_DSigmaPN_DSigmaVM(stressVec, k, beginInd, endInd, power)*DsigmaVM_Dsigma_a.transpose()*calc_DniS_Drho_e(x[stressVec[k].idx].rho)*calc_Drho_e_Dxb(j, stressVec[k].idx, x, r0, nodes)*Elasticity*Ba * u;
-
+				sum3 += calc_DSigmaPN_DSigmaVM(stressVec, k, beginInd, endInd, power)*DsigmaVM_Dsigma_a.transpose()*calc_DniS_Drho_e(x[stressVec[k].idx].rho)*calc_Drho_e_Dxb(j, stressVec[k].idx, x, r0, nodes)*Elasticity*Ba*u;
+			
 			}
 
-			/*
+			dg[deriv_Ind] = sum3 -lambda_i.transpose()*sum1;
+/*
 			if (deriv_Ind == 0) {
-				std::cout << "sum3: " << sum3 << std::endl;
+				std::cout << "dg" << dg[deriv_Ind] <<std::endl;
 				std::cout << "sum1: " << sum1 << std::endl;
-				std::cout << "lambda_i: " << lambda_i << std::endl;
+				//	std::cout << "lambda_i: " << lambda_i << std::endl;
 				exit(-1);
 			}
-			*/
-			dg[deriv_Ind] = sum3 - std::pow(x[stressVec[j].idx].rho, 0.5)*lambda_i.transpose()*sum1;
-
+*/
 			deriv_Ind++;
 
 		}
 
-		for (int k = beginInd; k < endInd; k++) {
-			g[i] += std::pow(stressVec[k].vonMises, 3);
-
-		}
-
-		g[i] = std::pow((double)1.0 / (endInd - beginInd)*g[i], (double)1.0 / 3) - allowableStress;
-
-
 		beginInd = endInd;
 
-		std::cout << "finished calculating tunable derivatives" << std::endl;
+
+	//	std::cout << "finished calculating tunable derivatives" << std::endl;
 	}
 			
-				std::cout << "done calculating derivatives - starting mma" << std::endl;
+	//			std::cout << "done calculating derivatives - starting mma" << std::endl;
 				/*
 				for (int i = 0; i < x.size(); i++) {
 					std::cout << "df[" << i << "]: " << df[i] << std::endl;
@@ -562,6 +579,8 @@ double optimizeStress(std::vector<Stress> stressVec, Eigen::VectorXd u, int C, i
 					std::cout << "dg[" << i << "]: " << dg[i] << std::endl;
 				}
 				*/
+
+
 				optimizer->Update(xnew, df, g, dg, xmin, xmax);
 				int tempInd = 0;
 
@@ -570,9 +589,11 @@ double optimizeStress(std::vector<Stress> stressVec, Eigen::VectorXd u, int C, i
 					if (x[i].tunable == false) {
 						continue;
 					}
+
 					change = Max(change, (std::abs(x[i].value - xnew[tempInd]))/xnew[tempInd]);
 					x[i].value = xnew[tempInd];
-			//		std::cout << "x[" << tempInd << "]: " << xnew[tempInd] << std::endl;
+			//		x[0].value += 0.0000000001;
+				//	break;
 					tempInd++;
 
 				}

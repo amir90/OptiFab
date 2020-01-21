@@ -24,5 +24,5 @@ double ni_s(double rho);
 double error(int n, double* x_new, double* x_old);
 std::vector<Stress> calcStresses(double ni, double E, std::vector<std::vector<double>> const nodes, std::vector<designVariable>  const x, Eigen::VectorXd  u, float dx);
 std::vector<Stress> calcStresses(double ni, double E, std::vector<std::vector<double>> const nodes, std::vector<designVariable>  const x, Eigen::VectorXd  u, float dx, std::vector<int> targets);
-double optimizeStress(std::vector<Stress> Stresses, Eigen::VectorXd u, int C, int power, float dx, double change, std::vector<std::vector<double>> nodes, std::vector<designVariable>  x,
+double optimizeStress(std::vector<Stress> Stresses, Eigen::VectorXd u, int C, int power, float dx, double change, std::vector<std::vector<double>> &nodes, std::vector<designVariable>  &x,
 	double* xnew, double* dg, double* g, double* df, double* xmin, double *xmax, double density, double E, double ni, MMASolver* optimizer, int neighbourLayers,float r0);
