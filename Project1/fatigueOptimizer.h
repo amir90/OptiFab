@@ -22,15 +22,15 @@ double dDe_dsigma_m_i(double Sut, double bf, double Sf, std::vector<double> sigm
 
 inline Eigen::RowVectorXd dsigma_m_i_dsigma_m_i_vec();
 
-Eigen::VectorXd dsigma_m_i_vec_dgamma_e(int e_id, double p, std::vector<designVariable> x, Eigen::VectorXd u_max, Eigen::VectorXd u_min);
+Eigen::VectorXd dsigma_m_i_vec_dgamma_e(int e_id, double p, std::vector<designVariable> x, Eigen::VectorXd u_max, Eigen::VectorXd u_min,double E);
 
-Eigen::VectorXd Lambda_max_i( double p, std::vector<designVariable> x, std::vector<int> Omega_k, std::vector<Stress> sigma_a, std::vector<double> damage, double Sut, double bf, double Sf, std::vector<double> sigma_m, double E, int cycle, std::vector<int> n);
+Eigen::VectorXd Lambda_max_i(int e_id, double p, std::vector<designVariable> x, std::vector<int> Omega_k, std::vector<Stress> sigma_a, std::vector<double> damage, double Sut, double bf, double Sf, std::vector<double> sigma_m, double E, int cycle, std::vector<int> n);
 
 //Eigen::SparseMatrixBase<Eigen::MatrixXd> dK_dgamma_e();
 
-Eigen::VectorXd Lambda_min_i(double p, std::vector<designVariable> x, std::vector<int> Omega_k, std::vector<Stress> sigma_a, std::vector<double> damage, double Sut, double bf, double Sf, std::vector<double> sigma_m, double E, int cycle, std::vector<int> n);
+Eigen::VectorXd Lambda_min_i(int e_id, double p, std::vector<designVariable> x, std::vector<int> Omega_k, std::vector<Stress> sigma_a, std::vector<double> damage, double Sut, double bf, double Sf, std::vector<double> sigma_m, double E, int cycle, std::vector<int> n);
 
-std::vector<double> full_dD_PN_k_dgamma_e(std::vector<designVariable> &x, std::vector<std::vector<int>> Omega_k, std::vector<int> n, double p, std::vector<std::vector<Eigen::VectorXd>> u_max, std::vector<std::vector<Eigen::VectorXd>> u_min, std::vector<std::vector<Stress>> &sigma_a, std::vector<double> &damage, double Sut, double bf, double Sf, std::vector<std::vector<double>> &sigma_m, double E, std::vector<std::vector<double>> &nodes, double r0);
+void full_dD_PN_k_dgamma_e(std::vector<designVariable> &x, std::vector<std::vector<int>> Omega_k, std::vector<int> n, double p, std::vector<std::vector<Eigen::VectorXd>> u_max, std::vector<std::vector<Eigen::VectorXd>> u_min, std::vector<std::vector<Stress>> &sigma_a, std::vector<double> &damage, double Sut, double bf, double Sf, std::vector<std::vector<double>> &sigma_m, double E, std::vector<std::vector<double>> &nodes, double r0, double* dg);
 
-double optimizeFatigue();
-
+double optimizeFatigue(double* xnew, double* dg, double* g, double* df, double* xmin, double *xmax, MMASolver* mma, std::vector<std::vector<double>>& nodes, std::vector<designVariable> &x,
+	double numOfVoxelsX, double numOfVoxelsY, double numOfVoxelsZ, double r0, double dx);

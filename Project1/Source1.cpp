@@ -92,7 +92,7 @@ int main() {
 
 	int power = 3;
 
-	int C = 3;
+	int C = 1;
 
 	//initialize for compliance optimizer
 
@@ -125,6 +125,7 @@ int main() {
 	//	g[0] += x[i].value;
 	//	dg[i] = 1;
 		xnew[i] = x[i].value;
+		df[i] = dx * dx*dx*density;
 	}
 
 	double E = 70000000000;
@@ -168,17 +169,182 @@ int main() {
 
 	double delta = 0;
 
-	double deriv;
+	Eigen::VectorXd u_dot_0, u0;
+
+	u_dot_0 = Eigen::VectorXd::Zero(nodes.size());
+
+	u0 = Eigen::VectorXd::Zero(nodes.size());
+
+	std::vector<int> targets = linspace<int>(0, x.size() - 1, x.size());
+
+	std::cout << "targets size: " << targets.size() << std::endl;
+
+	std::vector<std::vector<double>> sigma_m;
+
+	std::vector<std::vector<Stress>> sigma_a;
+
+	std::vector<std::vector<Eigen::VectorXd>> u_max;
+
+	std::vector<std::vector<Eigen::VectorXd>> u_min;
+
+	int steps = 15;
+
+	Eigen::MatrixXd disp_test;
+
+	igl::opengl::glfw::Viewer viewer; //sets opengl context (important for images of buttons)
+
+		//initialize matrices for faces and vertices - for libigl display
+	Eigen::MatrixXd V;
+	Eigen::MatrixXi F;
+
+	Eigen::MatrixXd Color;
 
 	Eigen::VectorXd test_u = Eigen::VectorXd::Zero(nodes.size()*3);
 
-	for (int iter = 0; iter < 100; iter++) {
+	std::vector<double> ck_iter(C, 1);
+
+	double DPN_k = 0;
+
+	double max_Dk = -1;
+
+	double tau=0.5;
+
+	for (int iter = 0; iter < 150; iter++) {
+
+		sigma_a.clear();
+
+		sigma_m.clear();
+
+		u_max.clear();
+
+		u_min.clear();
+
+		u_dot_0 = Eigen::VectorXd::Zero(nodes.size());
+
+		u0 = Eigen::VectorXd::Zero(nodes.size());
+
+	//	u_max.clear(); u_min.clear();
 
 		calc_rho(nodes, x, -1, dx, numOfVoxelsX, numOfVoxelsY, numOfVoxelsZ, r0);
 
-		Eigen::VectorXd u_temp = doFEM(nodes, x, forceVertexIdSet, constraintVertexIdSet, dx, E);
+	//	Eigen::VectorXd u_temp = doFEM(nodes, x, forceVertexIdSet, constraintVertexIdSet, dx, E);
 
-		std::cout << "max FEM displacement: " << u_temp.maxCoeff() << std::endl;
+//		std::cout << "max FEM displacement: " << u_temp.maxCoeff() << std::endl;
+
+		ClacStressTimeHistory(targets, x, 0.001, 0.001, power, forceVertexIdSet, dx, E, nodes, constraintVertexIdSet, u_dot_0, u0, 0.0001, steps, sigma_m, sigma_a, disp_test, u_max, u_min);
+
+		std::cout << "number of u_max: " << u_max[3].size() << "/" << sigma_a[3].size() << std::endl;
+
+		//	std::cout << "calculated stress histories" << std::endl;
+		if (debug_flag) {
+			for (int i = 0; i < targets.size(); i++) {
+
+				for (int j = 0; j < sigma_m[i].size(); j++) {
+
+					std::cout << "i: " << i << " j: " << j << " sigma_m: " << sigma_m[i][j] << " sigma_a: " << sigma_a[i][j].vonMises << std::endl;
+
+				}
+			}
+		}
+
+		double bf = -0.075;
+		double sigma_f = 650000000;
+		double ni = 1000000;
+		double Sut = 380000000;
+		double Sf = 3;
+
+		std::vector<double> damage(x.size(), 0);
+
+		for (int i = 0; i < targets.size(); i++) {
+
+			std::vector<double> N(sigma_m[i].size());
+			//calculate damage for target
+			double D = 0;
+			for (int j = 0; j < N.size(); j++) {
+				if (((sigma_f*(Sut - std::max(sigma_m[i][j], 0.0)))) < 0) {
+					D = 30;
+					break;
+				}
+				D += ni * 2 * std::pow(Sut*sigma_a[i][j].vonMises / (sigma_f*(Sut - std::max(sigma_m[i][j], 0.0))), -1.0 / bf);
+				if (D > 1) { //is clipping the correct approach?
+					D = 30;
+					break;
+				}
+			}
+
+			damage[i] = D;
+
+			assert(D >= 0);
+		}
+
+
+		//split the damages in to groups
+
+		auto sorted = sort_indexes(damage);
+
+		std::vector<std::vector<int>> Omega_k;
+
+		for (int i = 0; i < C; i++) {
+
+			g[i] = 0;
+
+			Omega_k.push_back(std::vector<int>(sorted.begin() + std::ceil((float)i / C * sorted.size()), sorted.begin() + std::ceil((float)(i + 1) / C * sorted.size())));
+
+			std::cout << Omega_k[0].size() << std::endl;
+
+			for (int id : Omega_k[i]) {
+
+				g[i] += std::pow(damage[id],power)*x[id].rho;
+
+				if (max_Dk < damage[id]) {
+
+					max_Dk = damage[id];
+
+				}
+
+			}
+
+	//		std::cout << i << ": " << max_Dk << std::endl;
+
+			g[i] = ck_iter[i]*std::pow(g[i], 1.0 / power)-1;
+
+			ck_iter[i] = ck_iter[i] *(tau * max_Dk/(g[i]+1) + (1 - tau));
+
+			assert(ck_iter[i] >= 0);
+
+		}
+
+		std::vector<int> n(sigma_a.size(), ni);
+
+		full_dD_PN_k_dgamma_e(x, Omega_k, n, power, u_max, u_min, sigma_a, damage, Sut, bf, Sf, sigma_m, E, nodes, r0,dg);
+
+		change = optimizeFatigue(xnew, dg, g, df, xmin, xmax, mma, nodes, x, numOfVoxelsX, numOfVoxelsY, numOfVoxelsZ, r0, dx);
+
+		if (iter == -1) {
+
+			makeSurfaceMesh3(x, nodes);
+			igl::readOBJ("mesh.obj", V, F);
+			viewer.data().set_mesh(V, F);
+
+			Eigen::VectorXd rhoFaces(F.rows());
+
+			for (int i = 0; i < x.size(); i++) {
+				std::cout << dg[i] << std::endl;
+				//		std::cout << "element: " << i << ", Damage: " << x[i].rho << std::endl;
+				for (int j = 0; j < 12; j++) {
+					rhoFaces(i * 12 + j) = x[i].rho;//damage[i];
+
+				}
+			}
+
+			igl::jet(rhoFaces, true, Color);
+
+			viewer.data().set_colors(Color);
+
+			viewer.launch();
+
+		}
+
 		/*
 		//for debug
 		for (int i = 0; i < nodes.size(); i++) {
@@ -216,14 +382,13 @@ int main() {
 
 		//calculate discrete derivative constraints due to changing x[0].value, and compare to the analytical value.
 
-		std::vector<Stress> Stresses = calcStresses(ni, E, nodes, x, u_temp, dx);
+	//	std::vector<Stress> Stresses = calcStresses(ni, E, nodes, x, u_temp, dx);
 
-		change = optimizeStress(Stresses, u_temp, C, power, dx, change, nodes, x,
-			xnew, dg, g, df, xmin, xmax, density, E, ni, mma, -1, r0);
+	//	change = optimizeStress(Stresses, u_temp, C, power, dx, change, nodes, x, xnew, dg, g, df, xmin, xmax, density, E, ni, mma, -1, r0);
 
-		if (iter == 0) {
-			deriv = dg[0];
-		}
+	//	if (iter == 0) {
+	//		deriv = dg[0];
+	//	}
 
 		std::cout << change << std::endl;
 
@@ -240,8 +405,8 @@ int main() {
 
 	//std::cout <<"u_norm: "<< test_u.norm() <<" "<< test_u.minCoeff() <<" "<< test_u.maxCoeff()<< std::endl;
 
-	std::cout << "discrete derivative: : "<< delta << std::endl;
-	std::cout << "analytical derivative: : " << deriv << std::endl;
+	//std::cout << "discrete derivative: : "<< delta << std::endl;
+	//std::cout << "analytical derivative: : " << deriv << std::endl;
 
 	for (int i = 0; i < x.size(); i++) {
 
@@ -249,12 +414,12 @@ int main() {
 
 	}
 
-	std::cout << nodes.size() << std::endl;
-	std::cout << "test forces and constraints" << std::endl;
-	std::cout << forceVertexIdSet.size() << std::endl;
-	std::cout << forceVertexIdSet.begin()->first << " " << forceVertexIdSet.begin()->second << std::endl; 
-	std::cout << std::next(forceVertexIdSet.begin(),1)->first <<" "<< std::next(forceVertexIdSet.begin(), 1)->second<< std::endl;
-	std::cout << constraintVertexIdSet.size() << std::endl;
+//	std::cout << nodes.size() << std::endl;
+//	std::cout << "test forces and constraints" << std::endl;
+//	std::cout << forceVertexIdSet.size() << std::endl;
+//	std::cout << forceVertexIdSet.begin()->first << " " << forceVertexIdSet.begin()->second << std::endl; 
+//	std::cout << std::next(forceVertexIdSet.begin(),1)->first <<" "<< std::next(forceVertexIdSet.begin(), 1)->second<< std::endl;
+//	std::cout << constraintVertexIdSet.size() << std::endl;
 
 
 
@@ -288,10 +453,6 @@ int main() {
 
 	makeSurfaceMesh3(x, nodes); //writes mesh to file "mesh.obj"
 
-	//initialize matrices for faces and vertices - for libigl display
-	Eigen::MatrixXd V;
-	Eigen::MatrixXi F;
-
 	//igl::readOBJ("mesh.obj", V, F);
 
 	//constraint and force selection on voxel grid by mouse input
@@ -302,7 +463,7 @@ int main() {
 	static float  forceY = 0;
 	static float forceZ = 0;
 	
-	igl::opengl::glfw::Viewer viewer; //sets opengl context (important for images of buttons)
+
 
 	int optimizerFlag = -1;
 	
@@ -444,7 +605,6 @@ int main() {
 
 				}
 
-
 			}
 			// Show mesh
 			viewer.data().set_mesh(V, F);
@@ -480,7 +640,6 @@ int main() {
 
 	// Attach a menu plugin
 	igl::opengl::glfw::imgui::ImGuiMenu menu;
-
 
 	GLuint tex_2d = 0;
 	GLuint tex_2d_1 = 1;
@@ -686,8 +845,6 @@ int main() {
 	}
 	*/
 	bool animation_flag = false;
-
-	Eigen::MatrixXd disp_test;
 	
 	//initialize for stress optimizer
 	//int C = 2; //number of stress groups
@@ -722,9 +879,7 @@ int main() {
 			return false;
 		}
 
-		Eigen::MatrixXd Color;
 
-		Eigen::VectorXd rhoFaces(F.rows());
 		
 		if (optimizerFlag == 0) { //test NSGA3
 
@@ -812,7 +967,7 @@ int main() {
 					rhoFaces(i * 12 + j) = solutions[best_fit_ind].vars()[i];
 				}
 			}*/
-			igl::jet(rhoFaces, true, color);
+		//	igl::jet(rhoFaces, true, color);
 
 		//	std::cout << "fitness: " << solutions[best_fit_ind].objs()[0];
 
@@ -837,11 +992,11 @@ int main() {
 
 			for (int i = 0; i < x.size(); i++) {
 				for (int j = 0; j < 12; j++) {
-					rhoFaces(i * 12 + j) = x[i].rho;
+	//				rhoFaces(i * 12 + j) = x[i].rho;
 				}
 			}
 
-			igl::jet(rhoFaces, true, Color);
+		//	igl::jet(rhoFaces, true, Color);
 			viewer.data().set_mesh(V, F);
 			viewer.data().set_colors(Color);
 
@@ -918,20 +1073,20 @@ int main() {
 
 			//optimizeStress(StressVec, u, C, power, dx, change, nodes, x, xnew, dg, g, df, xmin, xmax, density, E, ni, mma, 1, r0);
 
-			rhoFaces.resize(F.rows());
+//			rhoFaces.resize(F.rows());
 			std::cout << F.rows() << std::endl;
 			int ind = 0;
 			for (int i = 0; i < x.size(); i++) {
 				if (x[i].value>0.001) {
 //				std::cout <<  "stress at " <<i<<" : "<< calcVonMises(StressVec[i].Stresses) << std::endl;
 				for (int j = 0; j < 12; j++) {
-					rhoFaces(ind * 12 + j) = x[i].value;//calcVonMises(StressVec[i].Stresses);
+	//				rhoFaces(ind * 12 + j) = x[i].value;//calcVonMises(StressVec[i].Stresses);
 					}
 				ind++;
 				}
 			}
 
-			igl::jet(rhoFaces, true, Color);
+		//	igl::jet(rhoFaces, true, Color);
 			viewer.data().set_mesh(V, F);
 			viewer.data().set_colors(Color);
 
@@ -942,6 +1097,7 @@ int main() {
 
 		if (optimizerFlag == 3) { //test fatigue optimizer
 
+			/*
 			int steps = 60;
 
 			if (!animation_flag) {
@@ -985,8 +1141,6 @@ int main() {
 						}
 					}
 				}
-
-				
 
 				double bf = -0.075;
 				double sigma_f = 650000000;
@@ -1033,7 +1187,7 @@ int main() {
 
 					Omega_k.push_back(std::vector<int>(sorted.begin() + std::ceil((float)i / K * sorted.size()), sorted.begin() + std::ceil((float)(i+1)/K * sorted.size())));
 
-					std::cout<<Omega_k[i].size() << std::endl;
+				//	std::cout<<Omega_k[i].size() << std::endl;
 				}
 
 				
@@ -1090,12 +1244,13 @@ int main() {
 				return false;
 
 			}
+			
 			else {
 
 
 
 			}
-
+			*/
 		}
 			
 		viewer.core.is_animating = false;

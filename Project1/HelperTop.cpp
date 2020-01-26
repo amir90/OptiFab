@@ -423,13 +423,14 @@ void makeMesh(std::vector<designVariable> const &x, std::vector<std::vector<doub
 
 	SurfaceObjFile.open("finalObject.obj");
 	int nodeCounter = 0;
+	double minVal = 0.999; //0.001
 
 	//define mask array which tracks which nodes need to be deactivated
 	std::vector<int> initMask(nodes.size(), -1);
 
 	for (int i = 0; i < x.size(); i++) {
 
-		if (x[i].value > 0.001) {
+		if (x[i].value > minVal) {
 
 			for (int j = 0; j < 8; j++) {
 				initMask[x[i].nodeIdx[j]] = 0;
@@ -463,7 +464,7 @@ void makeMesh(std::vector<designVariable> const &x, std::vector<std::vector<doub
 
 	for (int i = 0; i < x.size(); i++) {
 
-		if (x[i].value <= 0.001) {
+		if (x[i].value <= minVal) {
 			continue;
 		}
 		//{ 3,6,7,5 }

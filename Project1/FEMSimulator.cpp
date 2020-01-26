@@ -738,7 +738,7 @@ void getBCforVoxelTest(std::vector<designVariable> &x, std::vector<std::vector<d
 
 			if (planeVariable) {
 				tempForce.first = x[currVoxel].nodeIdx[vertexList[nodecounter - 1]];
-				tempForce.second = Eigen::Vector3f(0, -1, 0);
+				tempForce.second = Eigen::Vector3f(0, -20, 0);
 			}
 			nodecounter--;
 
