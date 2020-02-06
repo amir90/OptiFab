@@ -25,6 +25,8 @@
 #include <fstream>
 #include <iostream>
 #include "NSGAIIIComp.h"
+#include <igl/edge_topology.h>
+#include <igl/per_face_normals.h>
 
 
 template <typename T>
@@ -58,16 +60,18 @@ std::vector<T> linspace(T a, T b, size_t N) {
 
 int main() {
 
+	bool voxelTestFlag = false;
+
 	std::vector<int> mask;
 
 	int argc = 1;
 	char *argv[1] = { (char*)"Something" };
 
 	//initialize voxel parameters
-	int numOfVoxelsX =20;
-	int numOfVoxelsY = 20;
+	int numOfVoxelsX =60;
+	int numOfVoxelsY = 30;
 	int numOfVoxelsZ = 1;
-	float dx = 0.001; // size
+	double dx = 0.001; // size
 	int NeighbourLayers = 1;
 	float r0 = 1.5*dx*NeighbourLayers;
 
@@ -85,7 +89,7 @@ int main() {
 
 	create_mesh(nodes, x,  numOfVoxelsX,  numOfVoxelsY,  numOfVoxelsZ,dx);
 
-	getBCforVoxelTest(x, nodes, numOfVoxelsX, numOfVoxelsY, numOfVoxelsZ,forceVertexIdSet, constraintVertexIdSet);
+//	getBCforVoxelTest(x, nodes, numOfVoxelsX, numOfVoxelsY, numOfVoxelsZ,forceVertexIdSet, constraintVertexIdSet);
 
 
 	double change = 1000;
@@ -93,40 +97,6 @@ int main() {
 	int power = 3;
 
 	int C = 1;
-
-	//initialize for compliance optimizer
-
-	double* dc = new double[x.size()];
-	double V_allowed = 0.3*numOfVoxelsX*numOfVoxelsY*numOfVoxelsZ;
-	double* xnew = new double[x.size()];
-	double* dg = new double[x.size()*C];
-	double* df = new double[x.size()];
-	double* g = new double[C];
-	double *xmin = new double[x.size()];
-	double *xmax = new double[x.size()];
-	double* dc_filtered = new double[x.size()];
-	MMASolver* mma = new MMASolver(x.size(), 1);
-
-	double density = 2800;
-
-	double ni = 0.3;
-
-
-	//g[0] = -V_allowed;
-	for (int i = 0; i < x.size(); i++) {
-
-		for (int j = 0; j < C; j++) {
-			g[j] = 0;
-			dg[i*C+j] = 0;
-		}
-
-		xmin[i] = 0.001;
-		xmax[i] = 1;
-	//	g[0] += x[i].value;
-	//	dg[i] = 1;
-		xnew[i] = x[i].value;
-		df[i] = dx * dx*dx*density;
-	}
 
 	double E = 70000000000;
 
@@ -196,6 +166,7 @@ int main() {
 		//initialize matrices for faces and vertices - for libigl display
 	Eigen::MatrixXd V;
 	Eigen::MatrixXi F;
+	Eigen::MatrixXd N;
 
 	Eigen::MatrixXd Color;
 
@@ -209,7 +180,7 @@ int main() {
 
 	double tau=0.5;
 
-	for (int iter = 0; iter < 150; iter++) {
+	for (int iter = 0; iter < 0; iter++) {
 
 		sigma_a.clear();
 
@@ -227,13 +198,13 @@ int main() {
 
 		calc_rho(nodes, x, -1, dx, numOfVoxelsX, numOfVoxelsY, numOfVoxelsZ, r0);
 
-	//	Eigen::VectorXd u_temp = doFEM(nodes, x, forceVertexIdSet, constraintVertexIdSet, dx, E);
+		Eigen::VectorXd u_temp = doFEM(nodes, x, forceVertexIdSet, constraintVertexIdSet, dx, E,power);
 
-//		std::cout << "max FEM displacement: " << u_temp.maxCoeff() << std::endl;
+		std::cout << "max FEM displacement: " << u_temp.maxCoeff() << std::endl;
 
-		ClacStressTimeHistory(targets, x, 0.001, 0.001, power, forceVertexIdSet, dx, E, nodes, constraintVertexIdSet, u_dot_0, u0, 0.0001, steps, sigma_m, sigma_a, disp_test, u_max, u_min);
+	//	ClacStressTimeHistory(targets, x, 0.001, 0.001, power, forceVertexIdSet, dx, E, nodes, constraintVertexIdSet, u_dot_0, u0, 0.0001, steps, sigma_m, sigma_a, disp_test, u_max, u_min);
 
-		std::cout << "number of u_max: " << u_max[3].size() << "/" << sigma_a[3].size() << std::endl;
+	//	std::cout << "number of u_max: " << u_max[3].size() << "/" << sigma_a[3].size() << std::endl;
 
 		//	std::cout << "calculated stress histories" << std::endl;
 		if (debug_flag) {
@@ -252,7 +223,7 @@ int main() {
 		double ni = 1000000;
 		double Sut = 380000000;
 		double Sf = 3;
-
+/*
 		std::vector<double> damage(x.size(), 0);
 
 		for (int i = 0; i < targets.size(); i++) {
@@ -344,7 +315,7 @@ int main() {
 			viewer.launch();
 
 		}
-
+*/
 		/*
 		//for debug
 		for (int i = 0; i < nodes.size(); i++) {
@@ -357,7 +328,7 @@ int main() {
 
 		return 1;
 		*/
-		std::cout << "g[0]: " << g[0] << std::endl;
+		//std::cout << "g[0]: " << g[0] << std::endl;
 		/*
 
 		Eigen::VectorXd displacement(24);
@@ -382,9 +353,14 @@ int main() {
 
 		//calculate discrete derivative constraints due to changing x[0].value, and compare to the analytical value.
 
-	//	std::vector<Stress> Stresses = calcStresses(ni, E, nodes, x, u_temp, dx);
+		std::vector<Stress> Stresses = calcStresses(ni, E, nodes, x, u_temp, dx);
 
-	//	change = optimizeStress(Stresses, u_temp, C, power, dx, change, nodes, x, xnew, dg, g, df, xmin, xmax, density, E, ni, mma, -1, r0);
+		for (int i = 0; i < Stresses.size(); i++) {
+
+			std::cout << "stresses" << Stresses[i].vonMises << std::endl;
+		}
+
+//		change = optimizeStress(Stresses, u_temp, C, power, dx, change, nodes, x, xnew, dg, g, df, xmin, xmax, density, E, ni, mma, -1, r0);
 
 	//	if (iter == 0) {
 	//		deriv = dg[0];
@@ -392,7 +368,7 @@ int main() {
 
 		std::cout << change << std::endl;
 
-		delta -= (g[0] * (0.5 - iter) * 2)/ 0.0000000001;
+	//	delta -= (g[0] * (0.5 - iter) * 2)/ 0.0000000001;
 
 		//test_u += u_temp * (0.5 - iter) * 2;
 
@@ -433,7 +409,7 @@ int main() {
 
 	std::cout << "done making surface mesh" << std::endl;
 
-	return 1;
+	//return 1;
 
 	//voxelize("assets/beam.obj", x, 5, 1, nodes);
 
@@ -451,7 +427,7 @@ int main() {
 	Eigen::MatrixXd KE(24, 24); //assumes x[0] value of node is 1 at the start	(?)
 	KE = K_mat();
 
-	makeSurfaceMesh3(x, nodes); //writes mesh to file "mesh.obj"
+	//makeSurfaceMesh3(x, nodes); //writes mesh to file "mesh.obj"
 
 	//igl::readOBJ("mesh.obj", V, F);
 
@@ -463,13 +439,16 @@ int main() {
 	static float  forceY = 0;
 	static float forceZ = 0;
 	
-
-
 	int optimizerFlag = -1;
+
+	std::set < std::pair<int, Eigen::Vector3f>, comp> forceFaceList;
+	std::set<int> constraintfaceList;
 	
 	viewer.callback_mouse_down =
-		[&V, &F, &forceVertexIdSet, &constraintVertexIdSet, &numOfVoxelsX,&numOfVoxelsY,&numOfVoxelsZ, &x, &nodes](igl::opengl::glfw::Viewer& viewer, int, int)->bool
+		[&V, &F, &N, &forceVertexIdSet, &constraintVertexIdSet, &numOfVoxelsX,&numOfVoxelsY,&numOfVoxelsZ,dx,&nodes, &voxelTestFlag, &constraintfaceList, &forceFaceList](igl::opengl::glfw::Viewer& viewer, int, int)->bool
 	{
+		std::cout <<"test voxelization flag: "<< voxelTestFlag << std::endl;
+		if (voxelTestFlag) return false;
 		int fid;
 		Eigen::Vector3f bc; //holds the hit position in barycentric coordinates
 		// Cast a ray in the view direction starting from the mouse position
@@ -478,14 +457,11 @@ int main() {
 		if (igl::unproject_onto_mesh(Eigen::Vector2f(x_Ray, y), viewer.core.view,
 			viewer.core.proj, viewer.core.viewport, V, F, fid, bc))
 		{
-			bc << 1, 0, 0;
-			fid = 0;
-			std::cout << V.row(F(fid, 1)) << std::endl;
 			Eigen::MatrixXd V_point(1, 3), endPoint(1, 3), colorPointConstraints(1, 3), colorPointForces(1, 3);
 			colorPointConstraints.row(0) = Eigen::Vector3d(1, 0, 0);
 			colorPointForces.row(0) = Eigen::Vector3d(0, 1, 0);
+			std::pair<int, Eigen::Vector3f> tempForce;
 
-			//if vertex select mode - which of the three triangle nodes is closest to click site?
 			int selectedV = 0;
 			for (int j = 1; j < 3; j++) {
 				if (bc(j) > bc(selectedV)) {
@@ -493,147 +469,152 @@ int main() {
 				}
 			}
 
-			//if plane select mode - check which plane
-			int planeInd=-1;
-			if (planeVariable) {
-				int v1 = F(fid, 0); int v2 = F(fid, 1); int v3 = F(fid, 2); //negative yz plane
-				if ((V(v1, 0) == V(v2, 0)) && (V(v1, 0) == V(v3, 0)) && V(v1, 0) == 0.0) {
-					planeInd = 0;
-				}
-				if ((V(v1, 0) == V(v2, 0)) && (V(v1, 0) == V(v3, 0)) && V(v1, 0) > 0.0) { //positive yz plane
-					planeInd = 1;
-				}
-			}
-			if (1==1 || bc(selectedV) > 0.6 || planeInd > -1) {
-				planeInd = 1;
-				planeVariable == true;
-				viewer.data().clear();
-				std::pair<int, Eigen::Vector3f> tempForce;
-				int numOfVoxelsinPlane=0;
-				int startVoxel = -1;
-				int nodecounter = 0;
-				std::vector<int> vertexList;
-				if (planeVariable) {
+			if (bc(selectedV) > 0.6) {
 
-					if (planeInd == 0) {
-						startVoxel = 0;
-						numOfVoxelsinPlane = numOfVoxelsY * numOfVoxelsZ;
-						nodecounter = 4;
-						vertexList = {0,2,3,5};
-						
-					}
-					if (planeInd == 1) {
-						startVoxel = numOfVoxelsX - 1;
-						numOfVoxelsinPlane = numOfVoxelsY * numOfVoxelsZ;
-						nodecounter = 4;
-						vertexList = { 1,4,6,7 };
-					}
-				}
-				else {
-					std::cout <<"testing select: " <<fid<<" "<<selectedV<<" "<< F(fid, selectedV) <<" "<<F.rows()<< " "<<V.rows()<< std::endl;
-					tempForce.first = F(fid, selectedV);
-					tempForce.second = Eigen::Vector3f(forceX, forceY, forceZ);
-					numOfVoxelsinPlane = 1;
-					nodecounter = 1;
-					std::cout << "testing end:"  << std::endl;
-				}
+				if (!planeVariable) {
 
-				int currVoxel = startVoxel;
+					if (boolVariable) { //make constraints, remove forces or existing constraint
+						tempForce.first = F(fid, selectedV);
+						tempForce.second = Eigen::Vector3f(forceX, forceY, forceZ);
 
-				while (numOfVoxelsinPlane) { //hack for selecting plane or individual vertices
-
-					std::cout << "current voxel is: " << currVoxel << std::endl;
-
-					while (nodecounter>0) {
-
-						if (planeVariable) {
-							tempForce.first = x[currVoxel].nodeIdx[vertexList[nodecounter - 1]];
-							tempForce.second = Eigen::Vector3f(forceX, forceY, forceZ);
-						}
-						nodecounter--;
-
-						if (boolVariable) { //constraints are on - delete forces
-							std::cout << "got here" << std::endl;
-							if (constraintVertexIdSet.find(tempForce.first) == constraintVertexIdSet.end()) {
-								constraintVertexIdSet.insert(tempForce.first);
-								forceVertexIdSet.erase(tempForce);
-								std::cout << "got here1" << std::endl;
-								std::pair<int, Eigen::Vector3f> tempForce;
-								tempForce.first = x[0].nodeIdx[0];
-								tempForce.second = Eigen::Vector3f(0, -10, 0);
-								forceVertexIdSet.insert(tempForce);
-								tempForce.first = x[0].nodeIdx[3];
-								tempForce.second = Eigen::Vector3f(0, -10, 0);
-								forceVertexIdSet.insert(tempForce);
-							}
-							else {
-								if (!planeVariable) {
-									constraintVertexIdSet.erase(tempForce.first);
-								}
-							}
-
+						if (constraintVertexIdSet.find(tempForce.first) != constraintVertexIdSet.end()) {
+							constraintVertexIdSet.erase(tempForce.first);
 						}
 						else {
-							if (forceVertexIdSet.find(tempForce) == forceVertexIdSet.end()) {
-								std::cout << "got here2" << std::endl;
-								constraintVertexIdSet.erase(tempForce.first);
-								forceVertexIdSet.insert(tempForce);
-								std::cout << "got here3" << std::endl;
+							constraintVertexIdSet.insert(tempForce.first);
+						}
+
+						if (forceVertexIdSet.find(tempForce) != forceVertexIdSet.end()) {
+							forceVertexIdSet.erase(tempForce);
+						}
+
+					}
+					else { //make forces, remove constraints or existing force
+
+						if (forceVertexIdSet.find(tempForce) != forceVertexIdSet.end()) {
+							forceVertexIdSet.erase(tempForce);
+						}
+						else {
+							forceVertexIdSet.insert(tempForce);
+						}
+
+						if (constraintVertexIdSet.find(tempForce.first) != constraintVertexIdSet.end()) {
+							constraintVertexIdSet.erase(tempForce.first);
+						}
+					}
+
+				} else {	//select all plane
+
+					Eigen::MatrixXi EV, FE, EF;
+					igl::edge_topology(V, F, EV, FE, EF);
+
+					//perform BFS from initial face. define set of visited faces, and a list of faces to visit
+
+					std::list<int> faces_to_visit; std::set<int> visited_faces;
+
+					faces_to_visit.push_back(fid);
+					
+					while (!faces_to_visit.empty()) {
+
+						int currFace = faces_to_visit.front();
+
+						visited_faces.insert(currFace);
+
+						//add force/constraint to face vertices
+				//		for (int v = 0; v < 3; v++) {
+				//			tempForce.first = F(currFace, v);
+							tempForce.first = currFace;
+							tempForce.second = Eigen::Vector3f(forceX, forceY, forceZ);
+
+							if (boolVariable) { //make constraints, remove forces or existing constraint
+
+								constraintfaceList.insert(tempForce.first);
+
+								if (forceFaceList.find(tempForce) != forceFaceList.end()) {
+									forceFaceList.erase(tempForce);
+								}
+
 							}
 							else {
-								if (!planeVariable) {
-									forceVertexIdSet.erase(tempForce);
+
+									forceFaceList.insert(tempForce);
+					
+								if (constraintfaceList.find(tempForce.first) != constraintfaceList.end()) {
+									constraintfaceList.erase(tempForce.first);
+								}
+
+							}
+				//		}
+						//add unvisited neighbours to list it change in normal is at most tol
+
+						double tol = 0.8;
+
+						for (int e = 0; e < 3; e++) {
+
+							int nb_face = EF(FE(currFace, e), 0) == currFace ? EF(FE(currFace, e), 1) : EF(FE(currFace, e), 0);
+
+							double dCos_angle = N.row(currFace).dot(N.row(nb_face));
+
+							if (dCos_angle > tol) {
+
+								if (visited_faces.find(nb_face) == visited_faces.end()) {
+									std::cout << nb_face << std::endl;
+									faces_to_visit.push_back(nb_face);
+									visited_faces.insert(nb_face);
 								}
 							}
 
 						}
-
+						
+						faces_to_visit.pop_front();
+						
 					}
-
-					numOfVoxelsinPlane--;
-					if (planeVariable) {
-						currVoxel = moveY(x, currVoxel, 1);
-						if (currVoxel == -1) {
-							startVoxel = moveZ(x, startVoxel, 1);
-							currVoxel = startVoxel;
-
-						}
-					}
-					nodecounter = 4;
-
-					std::cout << "got to end of loop" << std::endl;
-
+					
 				}
-
 			}
-			// Show mesh
+
+			viewer.data().clear();
 			viewer.data().set_mesh(V, F);
 			viewer.data().show_lines = true;
 
-			return true;
 		}
+
+
 		Eigen::RowVector3d V_point(3), endPoint(3), colorPointConstraints(3), colorPointForces(3);
 		colorPointConstraints.row(0) = Eigen::Vector3d(1, 0, 0);
 		colorPointForces.row(0) = Eigen::Vector3d(0, 1, 0);
+
+		std::cout<<"drawing constraints and forces"<<std::endl;
 		//draw points and lines (for forces)
 		for (auto j = forceVertexIdSet.begin(); j != forceVertexIdSet.end(); j++) {
-			double x = nodes[j->first][0]; double y = nodes[j->first][1]; double z = nodes[j->first][2];
-	//		double x = nodes[j->first][0]; double y = nodes[j->first][1]; double z = nodes[j->first][2];
-			V_point<< x, y, z;
-		//	endPoint<< nodes[(j->first) + j->second.cast<double>().transpose().normalized();
-			viewer.data().add_points(V_point, colorPointForces);
-//			viewer.data().add_edges(V_point, endPoint, colorPointForces);
+			viewer.data().add_points(V.row(j->first), colorPointForces);
+			double x = j->second(0); double y = j->second(1); double z = j->second(2);
+			viewer.data().add_edges(V.row(j->first), V.row(j->first) + Eigen::RowVector3d(x, y, z)*dx, colorPointForces);
+
 		}
 		for (auto j = constraintVertexIdSet.begin(); j != constraintVertexIdSet.end(); j++) {
-			double x = nodes[*j][0]; double y = nodes[*j][1]; double z = nodes[*j][2];
-			V_point << x, y, z;
-			viewer.data().add_points(V_point, colorPointConstraints);
+			viewer.data().add_points(V.row(*j), colorPointConstraints);
+		//	viewer.data().add_points(Eigen::RowVector3d(nodes[*j][0], nodes[*j][1], nodes[*j][2]), colorPointConstraints);
+		}
+
+		for (auto j = constraintfaceList.begin(); j != constraintfaceList.end(); j++) {
+			for (int k = 0; k < 3; k++) {
+				viewer.data().add_points(V.row(F(*j,k)), colorPointConstraints);
+				//	viewer.data().add_points(Eigen::RowVector3d(nodes[*j][0], nodes[*j][1], nodes[*j][2]), colorPointConstraints);
+			}
+		}
+
+		for (auto j = forceFaceList.begin(); j != forceFaceList.end(); j++) {
+			for (int k = 0; k < 3; k++) {
+				viewer.data().add_points(V.row(F(j->first, k)), colorPointForces);
+				double x = j->second(0); double y = j->second(1); double z = j->second(2);
+				viewer.data().add_edges(V.row(F(j->first, k)), V.row(F(j->first, k)) + Eigen::RowVector3d(x, y, z)*dx, colorPointForces);
+			}
+
 		}
 		// Show mesh
-	//	viewer.data().set_mesh(V, F);
-		viewer.data().show_lines = true;
 		return false;
-	};
+		};
 	std::cout << R"(Usage:
   [click]  Pick face on shape
 )";
@@ -667,13 +648,14 @@ int main() {
 		{
 
 			viewer.data().clear();
-		//	create_mesh(nodes, x, numOfVoxelsX, numOfVoxelsY, numOfVoxelsZ, dx);
+			create_mesh(nodes, x, numOfVoxelsX, numOfVoxelsY, numOfVoxelsZ, dx);
 		//	forceVertexIdSet.clear();
 		//	constraintVertexIdSet.clear();
 			remove("C:\\Users\\barda\\source\\repos\\Project1\\x64\\Release\\mesh.obj");
 			makeSurfaceMesh3(x, nodes); //writes mesh to file "finalObject.obj"
 			igl::readOBJ("mesh.obj", V, F);
 			viewer.data().set_mesh(V, F);
+			igl::per_face_normals(V, F, N);
 			std::cout << "create mesh" << std::endl;
 
 		}
@@ -681,7 +663,7 @@ int main() {
 		if (ImGui::Button("Open", ImVec2(100, 50))) {
 
 			viewer.data().clear();
-
+			voxelTestFlag = false;
 			char filename[MAX_PATH];
 
 			OPENFILENAME ofn;
@@ -700,14 +682,19 @@ int main() {
 				std::cout << "You chose the file \"" << filename << "\"\n";
 			}
 			
-			voxelize(filename, x, 10, dx, nodes, V, F);
+			//voxelize(filename, x, 5, dx, nodes, V, F);
 			forceVertexIdSet.clear();
 			constraintVertexIdSet.clear();
-			makeMesh(x, nodes, mask); //writes mesh to file "finalObject.obj"
-			igl::readOBJ("finalObject.obj", V, F);
+			forceFaceList.clear();
+			constraintfaceList.clear();
+			constraintVertexIdSet.clear();
+			//makeMesh(x, nodes, mask); //writes mesh to file "finalObject.obj"
+			igl::readOBJ(filename, V, F);
 			viewer.data().set_mesh(V, F);
+			igl::per_face_normals(V, F, N);
 			std::cout << "create mesh" << std::endl;
-
+			viewer.data().set_mesh(V, F);
+			
 		}
 
 		ImGui::Checkbox("constraint\force", &boolVariable);
@@ -747,7 +734,7 @@ int main() {
 
 				optimizerFlag = 3;
 
-				std::cout << "chose fatigue optimizer" << std::endl;
+				std::cout << "choose fatigue optimizer" << std::endl;
 			}
 
 
@@ -788,6 +775,34 @@ int main() {
 			ImGui::Unindent();
 		}
 
+		if (ImGui::Button("Test Voxelization", ImVec2(100, 50))) {
+
+			voxelTestFlag = true;
+			viewer.data().clear();
+			viewer.data_list.resize(2);
+			viewer.data_list[0].set_mesh(V, F);
+			voxelize(x, 10, dx, nodes, V, F, constraintVertexIdSet, forceVertexIdSet, constraintfaceList, forceFaceList, numOfVoxelsX, numOfVoxelsY, numOfVoxelsZ);
+		//	getBCforVoxelTest(x, nodes, numOfVoxelsX, numOfVoxelsY, numOfVoxelsZ, forceVertexIdSet, constraintVertexIdSet);
+			makeMesh(x, nodes, mask);
+			igl::readOBJ("finalObject.obj", V, F);
+			viewer.data().set_mesh(V, F);
+			viewer.data_list[1].set_mesh(V, F);
+			Eigen::RowVector3d colorPointConstraints(1, 0, 0);
+			Eigen::RowVector3d colorPointForces(0, 1, 0);
+			//	std::cout << "number of nodes: " << nodes.size() << " " << nodes[1][0] << nodes[1][1] << nodes[1][2] <<std::endl;
+			for (auto j = constraintVertexIdSet.begin(); j != constraintVertexIdSet.end(); j++) {
+				std::cout << *j << std::endl;
+				viewer.data().add_points(Eigen::RowVector3d(nodes[*j][0], nodes[*j][1], nodes[*j][2]), colorPointConstraints);
+			}
+			std::cout << "number of forces: " << forceVertexIdSet.size() << std::endl;
+			for (auto j = forceVertexIdSet.begin(); j != forceVertexIdSet.end(); j++) {
+				double x = j->second(0); double y = j->second(1); double z = j->second(2);
+				viewer.data().add_points(Eigen::RowVector3d(nodes[j->first][0], nodes[j->first][1], nodes[j->first][2]), colorPointForces);
+				viewer.data().add_edges(Eigen::RowVector3d(nodes[j->first][0], nodes[j->first][1], nodes[j->first][2]), Eigen::RowVector3d(nodes[j->first][0], nodes[j->first][1], nodes[j->first][2]) + Eigen::RowVector3d(x, y, z)*dx, colorPointForces);
+
+			}
+		}
+
 		if (ImGui::Button("Go", ImVec2(50, 50))) {
 
 			if (viewer.core.is_animating == true) {
@@ -797,7 +812,6 @@ int main() {
 				viewer.core.is_animating = true;
 			}
 		}
-
 
 		if (ImGui::Button("Clear", ImVec2(50, 50))) {
 			viewer.data().clear();
@@ -845,7 +859,7 @@ int main() {
 	}
 	*/
 	bool animation_flag = false;
-	
+
 	//initialize for stress optimizer
 	//int C = 2; //number of stress groups
 	//double* df = new double[x.size()];
@@ -857,18 +871,16 @@ int main() {
 	//double* dc_filtered = new double[x.size()];
 	//MMASolver* mma = new MMASolver(x.size(), 1);
 
-	for (int i = 0; i < x.size(); i++) {
-		xmin[i] = 0.001;
-		xmax[i] = 1;
-		xnew[i] = x[i].value;
-		for (int j = 0; j < C; j++) {
-			dg[i*C + j]=0;
-		}
-	}
+	//for (int i = 0; i < x.size(); i++) {
+	//	xmin[i] = 0.001;
+	//	xmax[i] = 1;
+	//	xnew[i] = x[i].value;
+	//	for (int j = 0; j < C; j++) {
+	//		dg[i*C + j]=0;
+	//	}
+	//}
 	
 	viewer.core.is_animating = false;
-
-	int iter2 = 0;
 
 	int curr_time_step = 0;
 
@@ -878,8 +890,6 @@ int main() {
 		if (!viewer.core.is_animating) {
 			return false;
 		}
-
-
 		
 		if (optimizerFlag == 0) { //test NSGA3
 
@@ -984,50 +994,162 @@ int main() {
 		
 		if (optimizerFlag == 1) {
 
-			std::cout << "optimizing compliance" << std::endl;
+		//	voxelize(x, 10, dx, nodes, V/10, F, constraintVertexIdSet, forceVertexIdSet, constraintfaceList, forceFaceList, numOfVoxelsX, numOfVoxelsY, numOfVoxelsZ);
 
-			calc_rho(nodes, x, -1, dx, numOfVoxelsX, numOfVoxelsY, numOfVoxelsZ,r0);
+			create_mesh(nodes, x, numOfVoxelsX, numOfVoxelsY, numOfVoxelsZ, dx);
 
-			Eigen::VectorXd u = doFEM(nodes, x, forceVertexIdSet, constraintVertexIdSet,dx,1);
+			getBCforVoxelTest(x, nodes, numOfVoxelsX, numOfVoxelsY, numOfVoxelsZ,forceVertexIdSet, constraintVertexIdSet);
 
+			std::cout << "number of voxels: " << x.size() << std::endl;
+
+			double start_weight=0;
+			
+			int num_untunable=0;
+
+			//initialize for compliance optimizer
+
+
+			
 			for (int i = 0; i < x.size(); i++) {
-				for (int j = 0; j < 12; j++) {
-	//				rhoFaces(i * 12 + j) = x[i].rho;
+				
+				if (x[i].tunable) {
+					start_weight += x[i].value;
 				}
+				else {
+					num_untunable++;
+				}
+
 			}
 
-		//	igl::jet(rhoFaces, true, Color);
-			viewer.data().set_mesh(V, F);
-			viewer.data().set_colors(Color);
+			std::cout << "number of untunable: " << num_untunable << std::endl;
 
-			Eigen::VectorXd displacement(24);
+			int numOfParameters = x.size() - num_untunable;
+			double* dc = new double[x.size()- num_untunable];
+			double V_allowed = 0.5*start_weight;
+			double* xnew = new double[x.size()- num_untunable];
+			double* dg = new double[(x.size()- num_untunable )*C];
+			double* df = new double[x.size()- num_untunable];
+			double* g = new double[C];
+			double *xmin = new double[x.size()- num_untunable];
+			double *xmax = new double[x.size()- num_untunable];
+			double* dc_filtered = new double[x.size()- num_untunable];
+			MMASolver* mma = new MMASolver(x.size()- num_untunable, 1);
+
+			double density = 2800;
+
+			double ni = 0.3;
+
+			double check_weight=0;
+
+
+			g[0] = -V_allowed+ start_weight;
+			for (int i = 0; i < numOfParameters; i++) {
+
+				for (int j = 0; j < C; j++) {
+			//		g[j] = 0;
+			//		dg[i*C + j] = 1;
+				}
+				xmin[i] = 0.001;
+				xmax[i] = 1;
+				dg[i] = 1;
+				xnew[i] = 1;
+				df[i] = dx * dx*dx*density;
+			}
+
+		//	std::cout <<"V_allowed: "<< V_allowed<< " start_weight: " << start_weight << " check weight: " <<  check_weight << std::endl;
+
+			std::cout << "dx: " <<dx<< std::endl;
+
+	//		std::cout << "constraint size: " << constraintVertexIdSet.size() << std::endl;
+
+	//		std::cout << "force size: " << forceVertexIdSet.size() << std::endl;
+
+			for (int iter = 0; iter < 100; iter++) {
+
+				double goal_test = 0;
+
+				calc_rho(nodes, x, NeighbourLayers, dx, numOfVoxelsX, numOfVoxelsY, numOfVoxelsZ, r0);
+
+		//		for (int i = 0; i < x.size(); i++) {
+
+		//			if (x[i].tunable) {
+		//				std::cout << "x[" << i << "]: " << x[i].rho << std::endl;
+			//		}
+
+			//	}
+
+		//		exit(-1);
+
+				Eigen::VectorXd u = doFEM(nodes, x, forceVertexIdSet, constraintVertexIdSet, dx, E, power);
+
+				for (auto f = forceVertexIdSet.begin(); f != forceVertexIdSet.end(); f++) {
+
+					int id = f->first;
+					goal_test += u[3 * id + 0] * f->second(0)+ u[3 * id + 1] * f->second(1)+ u[3 * id + 2] * f->second(2);
+
+				}
+
+				std::cout << "iter: " << iter << " constraint: " << g[0] << " goal: " <<goal_test<< std::endl;
+
+				std::cout << "calculated u, min u: " << u.minCoeff() << std::endl;
+
+
+
+				//	igl::jet(rhoFaces, true, Color);
+			//	viewer.data().set_mesh(V, F);
+			//	viewer.data().set_colors(Color);
+
+				Eigen::VectorXd displacement(24);
+				int ind=0;
+				for (int i = 0; i < x.size(); i++) {
+
+					if (x[i].tunable == false ) {
+						continue;
+					}
+
+					displacement(0) = u[x[i].nodeIdx[0] * 3]; displacement(1) = u[x[i].nodeIdx[0] * 3 + 1]; displacement(2) = u[x[i].nodeIdx[0] * 3 + 2];
+					displacement(3) = u[x[i].nodeIdx[1] * 3]; displacement(4) = u[x[i].nodeIdx[1] * 3 + 1]; displacement(5) = u[x[i].nodeIdx[1] * 3 + 2];
+					displacement(6) = u[x[i].nodeIdx[2] * 3]; displacement(7) = u[x[i].nodeIdx[2] * 3 + 1]; displacement(8) = u[x[i].nodeIdx[2] * 3 + 2];
+					displacement(9) = u[x[i].nodeIdx[4] * 3]; displacement(10) = u[x[i].nodeIdx[4] * 3 + 1]; displacement(11) = u[x[i].nodeIdx[4] * 3 + 2];
+					displacement(12) = u[x[i].nodeIdx[3] * 3]; displacement(13) = u[x[i].nodeIdx[3] * 3 + 1]; displacement(14) = u[x[i].nodeIdx[3] * 3 + 2];
+					displacement(15) = u[x[i].nodeIdx[6] * 3]; displacement(16) = u[x[i].nodeIdx[6] * 3 + 1]; displacement(17) = u[x[i].nodeIdx[6] * 3 + 2];
+					displacement(18) = u[x[i].nodeIdx[5] * 3]; displacement(19) = u[x[i].nodeIdx[5] * 3 + 1]; displacement(20) = u[x[i].nodeIdx[5] * 3 + 2];
+					displacement(21) = u[x[i].nodeIdx[7] * 3]; displacement(22) = u[x[i].nodeIdx[7] * 3 + 1]; displacement(23) = u[x[i].nodeIdx[7] * 3 + 2];
+
+					dc[ind] = -dx*power * std::pow(x[i].value, power - 1)* E*displacement.transpose()*KE*displacement;
+					ind++;
+
+				}
+
+				change = optimizeCompliance(xnew, dg, g, dc, xmin, xmax, dc_filtered, V_allowed, mma, nodes, x, dx, numOfVoxelsX, numOfVoxelsY, numOfVoxelsZ, 1);
+
+	//			if (iter == 49) {
+	//				for (int i = 0; i < nodes.size(); i++) {
+	//					nodes[i][0] += u(3 * i + 0) * 0.000001; nodes[i][1] += u(3 * i + 1) * 0.000001; nodes[i][2] += u(3 * i + 2) * 0.000001;
+	//				}
+	//			}
+
+				std::cout << "change: " << change << std::endl;
+			}
+			
+			std::cout << "x.size(): " <<x.size()<< std::endl;
+
 			for (int i = 0; i < x.size(); i++) {
 
-				displacement(0) = u[x[i].nodeIdx[0] * 3]; displacement(1) = u[x[i].nodeIdx[0] * 3 + 1]; displacement(2) = u[x[i].nodeIdx[0] * 3 + 2];
-				displacement(3) = u[x[i].nodeIdx[1] * 3]; displacement(4) = u[x[i].nodeIdx[1] * 3 + 1]; displacement(5) = u[x[i].nodeIdx[1] * 3 + 2];
-				displacement(6) = u[x[i].nodeIdx[2] * 3]; displacement(7) = u[x[i].nodeIdx[2] * 3 + 1]; displacement(8) = u[x[i].nodeIdx[2] * 3 + 2];
-				displacement(9) = u[x[i].nodeIdx[4] * 3]; displacement(10) = u[x[i].nodeIdx[4] * 3 + 1]; displacement(11) = u[x[i].nodeIdx[4] * 3 + 2];
-				displacement(12) = u[x[i].nodeIdx[3] * 3]; displacement(13) = u[x[i].nodeIdx[3] * 3 + 1]; displacement(14) = u[x[i].nodeIdx[3] * 3 + 2];
-				displacement(15) = u[x[i].nodeIdx[6] * 3]; displacement(16) = u[x[i].nodeIdx[6] * 3 + 1]; displacement(17) = u[x[i].nodeIdx[6] * 3 + 2];
-				displacement(18) = u[x[i].nodeIdx[5] * 3]; displacement(19) = u[x[i].nodeIdx[5] * 3 + 1]; displacement(20) = u[x[i].nodeIdx[5] * 3 + 2];
-				displacement(21) = u[x[i].nodeIdx[7] * 3]; displacement(22) = u[x[i].nodeIdx[7] * 3 + 1]; displacement(23) = u[x[i].nodeIdx[7] * 3 + 2];
-
-				dc[i] = -power * std::pow(x[i].value, power - 1)* displacement.transpose()*KE*displacement;
+				if (x[i].tunable) {
+					std::cout << "x[" << i << "]: " << x[i].value << std::endl;
+				}
 
 			}
 
-			change = optimizeCompliance(xnew, dg, g, dc, xmin, xmax, dc_filtered, V_allowed, mma, nodes, x, dx, numOfVoxelsX, numOfVoxelsY, numOfVoxelsZ,1);
-
-			if (iter2 > 30) {
 				makeMesh(x, nodes,mask);
-				viewer.data().clear();
-				igl::readOBJ("finalObject.obj", V, F);
-				viewer.data().set_mesh(V, F);
+
+				std::cout << "done" << std::endl;
+
 				viewer.core.is_animating = false;
-				iter2 = 0;
 				return false;
-			}
-			iter2++;
+
+
 		}
 
 		if (optimizerFlag == 2) { //test stress optimizer
@@ -1035,7 +1157,6 @@ int main() {
 		//	calc_rho(nodes, x, -1, dx, numOfVoxelsX, numOfVoxelsY, numOfVoxelsZ, r0);
 
 			std::cout << "begin stress" << std::endl;
-
 
 				auto constraintVertexIdSet2 = constraintVertexIdSet;
 				forceVertexIdSet2 = forceVertexIdSet;
@@ -1052,7 +1173,7 @@ int main() {
 				}
 			}
 
-			Eigen::VectorXd u = doFEM(nodes, x, forceVertexIdSet2, constraintVertexIdSet2, dx, E);
+			Eigen::VectorXd u = doFEM(nodes, x, forceVertexIdSet2, constraintVertexIdSet2, dx, E,power);
 
 			for (int i = 0; i < nodes.size(); i++) {
 				nodes[i][0] += u(3 * i + 0)*100000; nodes[i][1] += u(3 * i + 1)*100000; nodes[i][2] += u(3 * i + 2)*100000;

@@ -4,7 +4,8 @@
 #include<fstream>
 #include<set>
 
-#define eps 0.01
+
+#define eps 0.0001
 
 double Min(double d1, double d2) {
 	return d1 < d2 ? d1 : d2;
@@ -394,7 +395,6 @@ void makeSurfaceMesh3(std::vector<designVariable> const &x, std::vector<std::vec
 		SurfaceObjFile3 << "f " << x[i].nodeIdx[4] + 1 << " " << x[i].nodeIdx[1] + 1 << " " << x[i].nodeIdx[0] + 1 << std::endl;
 		SurfaceObjFile3 << "f " << x[i].nodeIdx[0] + 1 << " " << x[i].nodeIdx[2] + 1 << " " << x[i].nodeIdx[4] + 1 << std::endl;
 
-
 		//{2,4,7,5}
 		//SurfaceObjFile << "f " << nodeCounter + 1 << " " << nodeCounter + 2 << " " << nodeCounter + 3 << std::endl;
 		//SurfaceObjFile << "f " << nodeCounter + 3 << " " << nodeCounter + 4 << " " << nodeCounter + 1 << std::endl;
@@ -423,15 +423,15 @@ void makeMesh(std::vector<designVariable> const &x, std::vector<std::vector<doub
 
 	SurfaceObjFile.open("finalObject.obj");
 	int nodeCounter = 0;
-	double minVal = 0.999; //0.001
+	double minVal = 0.001;
 
 	//define mask array which tracks which nodes need to be deactivated
 	std::vector<int> initMask(nodes.size(), -1);
 
 	for (int i = 0; i < x.size(); i++) {
-
+		 
 		if (x[i].value > minVal) {
-
+		//	std::cout << "here" << std::endl;
 			for (int j = 0; j < 8; j++) {
 				initMask[x[i].nodeIdx[j]] = 0;
 			}
@@ -444,6 +444,7 @@ void makeMesh(std::vector<designVariable> const &x, std::vector<std::vector<doub
 		if (initMask[i]==0) {
 			initMask[i] = currInd;
 			currInd++;
+	//		std::cout << "here1: " << nodes[i][0]<< nodes[i][1]<< nodes[i][2]<< std::endl;
 			SurfaceObjFile << "v " << nodes[i][0] << " " << nodes[i][1] << " " << nodes[i][2] << std::endl;
 		}
 
@@ -567,9 +568,7 @@ void calc_rho(std::vector<std::vector<double>> const &nodes, std::vector<designV
 
 	for (int l = 0; l < x.size(); l++) { //for all voxels
 		x[l].rho = x[l].value;
-		x[l].influencesVoxels.insert(l);
-	}
-
+		x[l].influencesVoxels.insert(l);	}
 
 	return;
 
@@ -627,6 +626,9 @@ void calc_rho(std::vector<std::vector<double>> const &nodes, std::vector<designV
 
 	//			std::cout << "element " << l << " node: " << *i << std::endl;
 				designVariable temp = x[*i];
+
+				if (temp.tunable == false) { continue; }
+
 				wj = (length({ temp.position[0] - x[l].position[0],temp.position[1] - x[l].position[1],temp.position[2] - x[l].position[2] }) - r0) / r0;
 				if (l == 0) {
 					std::cout << "r0: " << r0 << std::endl;
@@ -647,7 +649,6 @@ void calc_rho(std::vector<std::vector<double>> const &nodes, std::vector<designV
 			wjx = 0;
 		}
 		std::cout << "finished calculating rho" << std::endl;
-
 }
 
 void create_mesh(std::vector<std::vector<double>>& nodes, std::vector<designVariable> &x, int numOfVoxelsX, int numOfVoxelsY, int numOfVoxelsZ, float dx) {
@@ -709,25 +710,29 @@ void create_mesh(std::vector<std::vector<double>>& nodes, std::vector<designVari
 
 }
 
-void voxelize(std::string filename, std::vector<designVariable> &x, int N, double dx, std::vector<std::vector<double>> &nodes, Eigen::MatrixXd &V, Eigen::MatrixXi &F ) {
+void voxelize(std::vector<designVariable> &x, int N, double &dx, std::vector<std::vector<double>> &nodes, Eigen::MatrixXd V, Eigen::MatrixXi F, std::set<int> &constraintVertexSet, std::set < std::pair<int, Eigen::Vector3f>, comp> &ForceVertexSet, std::set<int> constraintFaceList, std::set < std::pair<int, Eigen::Vector3f>, comp> &forceFaceList, int &Nx, int &Ny, int &Nz)
+{
 
 	//Eigen::MatrixXd V; Eigen::MatrixXi F; 
 	double w;
-	igl::readOBJ(filename, V, F);
-
+//	igl::readOBJ(filename, V, F);
 	Eigen::Vector3d m = V.colwise().minCoeff();
 	Eigen::Vector3d M = V.colwise().maxCoeff();
 
-	double factor = N/(M - m).minCoeff();
+	double factor =  N/(M - m).minCoeff();
 
-	int Nx = (M - m)[0] * factor;
-	int Ny = (M - m)[1] * factor;
-	int Nz = (M - m)[2] * factor;
+	dx = 1.0/factor;
+
+		Nx =  (M - m)[0] * factor + 1;
+		Ny = (M - m)[1] * factor + 1;
+		Nz =  (M - m)[2] * factor + 1;
 
 	//V = V.rowwise() - m.transpose();
-	V = V * factor;
+	//V = V * factor;
 
-	create_mesh(nodes, x, Nx, Ny, Nz, dx);
+	create_mesh(nodes, x, Nx, Ny, Nz, 1.0/factor);
+
+	std::set<std::pair<int,int>> boundaryVoxelFaces;
 
 	int ind=0;
 	for (int i = 0; i < x.size(); i++) {
@@ -738,14 +743,118 @@ void voxelize(std::string filename, std::vector<designVariable> &x, int N, doubl
 		w = igl::winding_number(V, F, p);
 
 		if (std::abs(w) < eps) {
+			x[i].tunable = false;
 			x[i].value = 0.001;
-			x[i].value = 0.001;
+			x[i].rho = 0.001;
+		}
+		else {
+			x[i].value = 0.5;
+			x[i].rho = 0.5;
+		}
+	}
+
+
+// add all non zero voxels to boundary
+	for (int i = 0; i < x.size(); i++) {
+
+		if (x[i].tunable == false) {
+
+			continue;
+
+		}
+
+		for (int j = 0; j < 6; j++) {
+			if (x[i].neighbors[j] != -1 && x[x[i].neighbors[j]].rho != 0.001) {
+				boundaryVoxelFaces.insert({ x[i].varIdx , x[i].neighbors[j] });
+			}
+			else if (x[i].neighbors[j] != -1) {
+
+				boundaryVoxelFaces.insert({ x[i].varIdx , x[i].neighbors[j] });
+
+			}
+		}
+	}
+
+	// go over all boundary voxels
+	//check which boundary face\faces intersects face with bc
+	//update points on voxel
+
+	std::cout << "number of boundary voxels: " << boundaryVoxelFaces.size() << std::endl;
+
+	std::cout << "number of face constraints: " << constraintFaceList.size() << std::endl;
+
+	for (auto i = boundaryVoxelFaces.begin(); i != boundaryVoxelFaces.end(); i++) {
+
+		int voxel = i->first; int nb = i->second;
+
+		//check if nb = -1
+		if (nb == -1) {
 			continue;
 		}
 
+		//check if face intersects with voxel cube
+
+		std::set<int> vertices1(std::begin(x[voxel].nodeIdx), std::end(x[voxel].nodeIdx));
+		std::set<int> vertices2(std::begin(x[nb].nodeIdx), std::end(x[nb].nodeIdx));
+
+		std::vector<int> intersection(4);
+
+		std::set_intersection(vertices1.begin(), vertices1.end(), vertices2.begin(), vertices2.end(), intersection.begin());
+
+		//add to constraint if one of the constraint faces intersects with the nb voxel 
+
+		bool intersectFlag = false;
+
+		glm::vec3 boxCenter1 = { x[nb].position[0],x[nb].position[1],x[nb].position[2] };
+
+		glm::vec3 boxCenter2 = { x[voxel].position[0],x[voxel].position[1],x[voxel].position[2] };
+
+		glm::vec3 halfBoxSize = { 0.5 / factor * (1 + eps), 0.5 / factor * (1 + eps), 0.5 / factor * (1 + eps) };
+
+		for (auto j = constraintFaceList.begin(); j != constraintFaceList.end(); j++) {
+
+			glm::vec3 tv0 = { V.row(F(*j,0))(0) ,V.row(F(*j,0))(1)  ,V.row(F(*j,0))(2) };
+
+			glm::vec3 tv1 = { V.row(F(*j,1))(0) ,V.row(F(*j,1))(1)  ,V.row(F(*j,1))(2) };
+
+			glm::vec3 tv2 = { V.row(F(*j,2))(0) ,V.row(F(*j,2))(1)  ,V.row(F(*j,2))(2) };
+
+			if (triBoxOverlap(boxCenter1, halfBoxSize, tv0, tv1, tv2) || triBoxOverlap(boxCenter2, halfBoxSize, tv0, tv1, tv2)) {
+				constraintVertexSet.insert(intersection.begin(), intersection.end());
+				x[nb].tunable = false;
+				intersectFlag = true;
+				break;
+			}
+
+		}
+
+		if (intersectFlag) continue;
+
+		for (auto j = forceFaceList.begin(); j != forceFaceList.end(); j++) {
+
+			glm::vec3 tv0 = { V.row(F(j->first,0))(0) ,V.row(F(j->first,0))(1)  ,V.row(F(j->first,0))(2) };
+
+			glm::vec3 tv1 = { V.row(F(j->first,1))(0) ,V.row(F(j->first,1))(1)  ,V.row(F(j->first,1))(2) };
+
+			glm::vec3 tv2 = { V.row(F(j->first,2))(0) ,V.row(F(j->first,2))(1)  ,V.row(F(j->first,2))(2) };
+
+			if (triBoxOverlap(boxCenter1, halfBoxSize, tv0, tv1, tv2) || triBoxOverlap(boxCenter2, halfBoxSize, tv0, tv1, tv2)) {
+				for (auto k = intersection.begin(); k != intersection.end(); k++) {
+					std::pair<int, Eigen::Vector3f> force;
+					force.first = *k; force.second = j->second;
+					ForceVertexSet.insert(force);
+					intersectFlag = true;
+					break;
+				}
+			}
+
+		}
 
 	}
 
+	std::cout << "number of constraints: " << constraintVertexSet.size() << std::endl;
+
+	
 
 }
 

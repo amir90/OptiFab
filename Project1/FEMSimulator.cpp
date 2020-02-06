@@ -485,18 +485,16 @@ Eigen::VectorXd do_FEM(SpMat &A, Eigen::VectorXd &f) {
 	return u;
 }
 
-Eigen::VectorXd doFEM(std::vector<std::vector<double>> const &nodes, std::vector<designVariable>  const &x, std::set < std::pair<int, Eigen::Vector3f>, comp> &forceVertexIdSet, std::set<int> &constraintVertexIdSet, float dx, double E) {
+Eigen::VectorXd doFEM(std::vector<std::vector<double>> const &nodes, std::vector<designVariable>  const &x, std::set < std::pair<int, Eigen::Vector3f>, comp> &forceVertexIdSet, std::set<int> &constraintVertexIdSet, float dx, double E, int power) {
 
 	Eigen::MatrixXd KE(24, 24); //assumes x[0] value of node is 1 at the start	(?)
 	KE = K_mat();
-	int power = 3;
 	std::vector<int> freeDOF;
 	freeDOF.resize(nodes.size());
 	int ind = 0; //number of free nodes
 	for (int i = 0; i < freeDOF.size(); i++) {
 
 		if (constraintVertexIdSet.find(i) == constraintVertexIdSet.end()) {
-			//if (constraints.find(i) == constraints.end()) {
 
 			freeDOF[i] = ind;
 			ind++;
@@ -521,7 +519,6 @@ Eigen::VectorXd doFEM(std::vector<std::vector<double>> const &nodes, std::vector
 		f[tempForceid + 0] = j->second[0];// force[temp_f].second[0];
 		f[tempForceid + 1] = j->second[1];//force[temp_f].second[1];
 		f[tempForceid + 2] = j->second[2]; //force[temp_f].second[2];//
-
 	}
 
 	std::cout << "start building global stiffness matrix" << std::endl;
@@ -552,18 +549,14 @@ Eigen::VectorXd doFEM(std::vector<std::vector<double>> const &nodes, std::vector
 			u[k * 3 + 2] = 0;
 		}
 	}
-
 	return u;
-
 }
-
 
 Eigen::VectorXd doFEM(std::vector<std::vector<double>> const &nodes, std::vector<designVariable>  const &x, std::set < std::pair<int, Eigen::Vector3f>, comp> &forceVertexIdSet, std::set<int> &constraintVertexIdSet, float dx, double E, SpMat &K_global,Eigen::VectorXd &f, std::vector<int> &freeDOF) {
 
 	Eigen::MatrixXd KE(24, 24); //assumes x[0] value of node is 1 at the start	(?)
 	KE = K_mat();
 	int power = 3;
-
 
 	std::cout << "start building global stiffness matrix" << std::endl;
 
@@ -596,6 +589,8 @@ Eigen::VectorXd doFEM(std::vector<std::vector<double>> const &nodes, std::vector
 
 void getBCforVoxelTest(std::vector<designVariable> &x, std::vector<std::vector<double>> &nodes, int numOfVoxelsX, int numOfVoxelsY, int numOfVoxelsZ, std::set < std::pair<int, Eigen::Vector3f>, comp> &forceVertexIdSet, std::set<int> &constraintVertexIdSet ) {
 
+	forceVertexIdSet.clear();
+	constraintVertexIdSet.clear();
 	int planeInd = 1;
 	bool planeVariable = true;
 	std::pair<int, Eigen::Vector3f> tempForce;
@@ -738,7 +733,7 @@ void getBCforVoxelTest(std::vector<designVariable> &x, std::vector<std::vector<d
 
 			if (planeVariable) {
 				tempForce.first = x[currVoxel].nodeIdx[vertexList[nodecounter - 1]];
-				tempForce.second = Eigen::Vector3f(0, -20, 0);
+				tempForce.second = Eigen::Vector3f(0, -1, 0);
 			}
 			nodecounter--;
 

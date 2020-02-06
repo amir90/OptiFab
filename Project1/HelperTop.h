@@ -5,21 +5,29 @@
 #include <set>
 #include <igl/winding_number.h>
 #include <igl/readOBJ.h>
+#include "AABD_triangle_intersection.h"
 
 
 struct designVariable {
 	int nodeIdx[8]; //each cell has eight nodes
 	int varIdx; //index of design variable
-	double value = 0.5; // x value
+	double value = 1; // x value
 	int neighbors[6]; //idx of neighbors
 	std::vector<double> position;
 	std::vector<int> rho_voxInd; //voxels which influence this voxel's rho
 	bool tunable = true; //integrate with voxel tunable parameter?
-	double rho = 0.5;//weighted value of element
+	double rho = 1;//weighted value of element
 	Eigen::VectorXd displacements = Eigen::VectorXd::Zero(24);
 	//double displacements[24];
 	std::set<int> influencesVoxels; //voxels which this voxel influences
 	double sum_wj = 0;
+};
+
+struct comp {
+	bool operator() (const std::pair<int, Eigen::Vector3f>& a, const  std::pair<int, Eigen::Vector3f>& b) const {
+
+		return a.first > b.first;
+	}
 };
 
 double Min(double d1, double d2);
@@ -37,4 +45,4 @@ void makeSurfaceMesh3(std::vector<designVariable> const &x, std::vector<std::vec
 void makeMesh(std::vector<designVariable> const &x, std::vector<std::vector<double>> const &nodes, std::vector<int> &mask);
 void calc_rho(std::vector<std::vector<double>> const &nodes, std::vector<designVariable>  &x, int NeighbourLayers, double dx, int nVx, int nVy, int nVz, float r0);
 void create_mesh(std::vector<std::vector<double>>& nodes, std::vector<designVariable> &x, int numOfVoxelsX, int numOfVoxelsY, int numOfVoxelsZ, float dx);
-void voxelize(std::string filename, std::vector<designVariable> &x , int N, double dx, std::vector<std::vector<double>> &nodes, Eigen::MatrixXd &V, Eigen::MatrixXi &F);
+void voxelize(std::vector<designVariable> &x, int N, double &dx, std::vector<std::vector<double>> &nodes, Eigen::MatrixXd V, Eigen::MatrixXi F, std::set<int> &constraintVertexSet, std::set < std::pair<int, Eigen::Vector3f>, comp> &ForceVertexSet, std::set<int> constraintFaceList, std::set < std::pair<int, Eigen::Vector3f>, comp> &forceFaceList, int &Nx, int &Ny, int &Nz);

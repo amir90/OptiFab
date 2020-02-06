@@ -73,7 +73,7 @@ bool ComplianceProblem::Evaluate(CIndividual *indv) {
 	//for (int i = 0; i < M_; i++) {
 
 
-		Eigen::VectorXd u = doFEM(nodes, this->x, forceVertexIdSet, constraintVertexIdSet, dx, 1);
+		Eigen::VectorXd u = doFEM(nodes, this->x, forceVertexIdSet, constraintVertexIdSet, dx, 1,3);
 
 		f[0] = 0;
 		f[1] = 0;

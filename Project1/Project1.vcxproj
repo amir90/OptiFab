@@ -127,7 +127,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\Users\barda\source\repos\Project1\Project1\dep;C:\Users\barda\source\repos\Project1\Project1\dep\eigen-3.3.7;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\barda\source\repos\Project1\Project1\dep;C:\Users\barda\source\repos\Project1\Project1\dep\eigen-3.3.7;C:\Users\barda\source\repos\Project1\Project1\dep\glm;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_MBCS;%(PreprocessorDefinitions);; HAVE_STRUCT_TIMESPEC;_CRT_SECURE_NO_WARNINGS; _NO_CRT_STDIO_INLINE;_CRT_SECURE_NO_WARNINGS</PreprocessorDefinitions>
       <OpenMPSupport>true</OpenMPSupport>
       <AdditionalOptions>/volatile:iso /permissive %(AdditionalOptions)</AdditionalOptions>
@@ -151,6 +151,7 @@
     <ClCompile Include="..\..\..\..\Documents\imgui-master\imgui.cpp" />
     <ClCompile Include="..\..\..\..\Documents\imgui-master\imgui_draw.cpp" />
     <ClCompile Include="..\..\..\..\Documents\libigl-legacy-master\external\imgui\imgui_impl_glfw_gl3.cpp" />
+    <ClCompile Include="AABD_triangle_intersection.cpp" />
     <ClCompile Include="ComplianceTuner.cpp" />
     <ClCompile Include="dep\NSGA3\alg_comparator.cpp" />
     <ClCompile Include="dep\NSGA3\alg_crossover.cpp" />
@@ -177,6 +178,7 @@
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\..\..\..\Documents\libigl-legacy-master\external\imgui\imgui_impl_glfw_gl3.h" />
+    <ClInclude Include="AABD_triangle_intersection.h" />
     <ClInclude Include="ComplianceTuner.h" />
     <ClInclude Include="fatigueOptimizer.h" />
     <ClInclude Include="FEMSimulator.h" />
