@@ -15,7 +15,8 @@ struct Stress {
 
 };
 
-double calc_DSigmaPN_DSigmaVM(std::vector<Stress> const &stresses, int k, int beginInd, int endInd, double p);
+double calc_DSigmaPN_DSigmaVM_sum(std::vector<Stress> const &stresses, int beginInd, int endInd, int p);
+double inline calc_DSigmaPN_DSigmaVM(std::vector<Stress> const &stresses, int k, double sum, int p);
 double calcVonMises(Eigen::VectorXd const  &stresses);
 Eigen::VectorXd calc_DsigmaVM_Dsigma_a(Stress const &stresses);
 double  calc_DniS_Drho_e(double rho_e);
