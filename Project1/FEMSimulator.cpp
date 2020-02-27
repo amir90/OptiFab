@@ -467,7 +467,7 @@ Eigen::VectorXd do_FEM(SpMat &A, Eigen::VectorXd &f) {
 	/* ... update b ... */
 	//u = solver.solve(f); // solve again
 //	std::cout << Eigen::nbThreads() << std::endl;
-	Eigen::ConjugateGradient<Eigen::SparseMatrix<double>, Eigen::Lower | Eigen::Upper> cg;
+	Eigen::ConjugateGradient<Eigen::SparseMatrix<double, Eigen::RowMajor>, Eigen::Lower | Eigen::Upper> cg;
 	cg.compute(A);
 //	Eigen::SimplicialCholesky<SpMat> chol(A);
 	//std::cout << A.rows() << " " << A.cols() << " " << f.rows() << " " << f.cols() << std::endl;
@@ -529,6 +529,8 @@ Eigen::VectorXd doFEM(std::vector<std::vector<double>> const &nodes, std::vector
 	SpMat K_global = build_global_stiffness_matrix(x, nodes.size(), KE, power, freeDOF, ind);
 	K_global = K_global*E*dx;
 
+	std::cout << "K_Global, n: " << K_global.rows() << " m: " << K_global.cols() << " nnz: " << K_global.nonZeros() << std::endl;
+
 	std::cout << "done building global stiffness matrix" << std::endl;
 
 //	std::cout << f.nonZeros() << std::endl;
@@ -552,6 +554,7 @@ Eigen::VectorXd doFEM(std::vector<std::vector<double>> const &nodes, std::vector
 	return u;
 }
 
+//if Gobal stiffness matrix is already calculated
 Eigen::VectorXd doFEM(std::vector<std::vector<double>> const &nodes, std::vector<designVariable>  const &x, std::set < std::pair<int, Eigen::Vector3f>, comp> &forceVertexIdSet, std::set<int> &constraintVertexIdSet, float dx, double E, SpMat &K_global,Eigen::VectorXd &f, std::vector<int> &freeDOF) {
 
 	Eigen::MatrixXd KE(24, 24); //assumes x[0] value of node is 1 at the start	(?)

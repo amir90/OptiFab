@@ -68,11 +68,11 @@ int main() {
 	char *argv[1] = { (char*)"Something" };
 
 	//initialize voxel parameters
-	int numOfVoxelsX =60;
-	int numOfVoxelsY = 30;
+	int numOfVoxelsX =240;
+	int numOfVoxelsY = 120;
 	int numOfVoxelsZ = 1;
 	double dx = 0.001; // size
-	int NeighbourLayers = 1;
+	int NeighbourLayers = 3;
 	float r0 = 1.5*dx*NeighbourLayers;
 
 	std::set < std::pair<int, Eigen::Vector3f>, comp> forceVertexIdSet;
@@ -147,7 +147,7 @@ int main() {
 
 	std::vector<int> targets = linspace<int>(0, x.size() - 1, x.size());
 
-	std::cout << "targets size: " << targets.size() << std::endl;
+	//std::cout << "targets size: " << targets.size() << std::endl;
 
 	std::vector<std::vector<double>> sigma_m;
 
@@ -353,12 +353,12 @@ int main() {
 
 		//calculate discrete derivative constraints due to changing x[0].value, and compare to the analytical value.
 
-		std::vector<Stress> Stresses = calcStresses(ni, E, nodes, x, u_temp, dx);
+//		std::vector<Stress> Stresses = calcStresses(ni, E, nodes, x, u_temp, dx);
 
-		for (int i = 0; i < Stresses.size(); i++) {
+//		for (int i = 0; i < Stresses.size(); i++) {
 
-			std::cout << "stresses" << Stresses[i].vonMises << std::endl;
-		}
+	//		std::cout << "stresses" << Stresses[i].vonMises << std::endl;
+	//	}
 
 //		change = optimizeStress(Stresses, u_temp, C, power, dx, change, nodes, x, xnew, dg, g, df, xmin, xmax, density, E, ni, mma, -1, r0);
 
@@ -366,7 +366,7 @@ int main() {
 	//		deriv = dg[0];
 	//	}
 
-		std::cout << change << std::endl;
+	//	std::cout << change << std::endl;
 
 	//	delta -= (g[0] * (0.5 - iter) * 2)/ 0.0000000001;
 
@@ -384,11 +384,6 @@ int main() {
 	//std::cout << "discrete derivative: : "<< delta << std::endl;
 	//std::cout << "analytical derivative: : " << deriv << std::endl;
 
-	for (int i = 0; i < x.size(); i++) {
-
-		std::cout << x[i].value << std::endl;
-
-	}
 
 //	std::cout << nodes.size() << std::endl;
 //	std::cout << "test forces and constraints" << std::endl;
@@ -447,7 +442,7 @@ int main() {
 	viewer.callback_mouse_down =
 		[&V, &F, &N, &forceVertexIdSet, &constraintVertexIdSet, &numOfVoxelsX,&numOfVoxelsY,&numOfVoxelsZ,dx,&nodes, &voxelTestFlag, &constraintfaceList, &forceFaceList](igl::opengl::glfw::Viewer& viewer, int, int)->bool
 	{
-		std::cout <<"test voxelization flag: "<< voxelTestFlag << std::endl;
+//		std::cout <<"test voxelization flag: "<< voxelTestFlag << std::endl;
 		if (voxelTestFlag) return false;
 		int fid;
 		Eigen::Vector3f bc; //holds the hit position in barycentric coordinates
@@ -791,7 +786,7 @@ int main() {
 			Eigen::RowVector3d colorPointForces(0, 1, 0);
 			//	std::cout << "number of nodes: " << nodes.size() << " " << nodes[1][0] << nodes[1][1] << nodes[1][2] <<std::endl;
 			for (auto j = constraintVertexIdSet.begin(); j != constraintVertexIdSet.end(); j++) {
-				std::cout << *j << std::endl;
+			//	std::cout << *j << std::endl;
 				viewer.data().add_points(Eigen::RowVector3d(nodes[*j][0], nodes[*j][1], nodes[*j][2]), colorPointConstraints);
 			}
 			std::cout << "number of forces: " << forceVertexIdSet.size() << std::endl;
@@ -994,11 +989,11 @@ int main() {
 		
 		if (optimizerFlag == 1) {
 
-		//	voxelize(x, 10, dx, nodes, V/10, F, constraintVertexIdSet, forceVertexIdSet, constraintfaceList, forceFaceList, numOfVoxelsX, numOfVoxelsY, numOfVoxelsZ);
+			voxelize(x, 10, dx, nodes, V/20, F, constraintVertexIdSet, forceVertexIdSet, constraintfaceList, forceFaceList, numOfVoxelsX, numOfVoxelsY, numOfVoxelsZ);
 
-			create_mesh(nodes, x, numOfVoxelsX, numOfVoxelsY, numOfVoxelsZ, dx);
+	//		create_mesh(nodes, x, numOfVoxelsX, numOfVoxelsY, numOfVoxelsZ, dx);
 
-			getBCforVoxelTest(x, nodes, numOfVoxelsX, numOfVoxelsY, numOfVoxelsZ,forceVertexIdSet, constraintVertexIdSet);
+	//		getBCforVoxelTest(x, nodes, numOfVoxelsX, numOfVoxelsY, numOfVoxelsZ,forceVertexIdSet, constraintVertexIdSet);
 
 			std::cout << "number of voxels: " << x.size() << std::endl;
 
@@ -1008,12 +1003,10 @@ int main() {
 
 			//initialize for compliance optimizer
 
-
-			
 			for (int i = 0; i < x.size(); i++) {
 				
 				if (x[i].tunable) {
-					start_weight += x[i].value;
+					start_weight += x[i].rho;
 				}
 				else {
 					num_untunable++;
@@ -1025,7 +1018,7 @@ int main() {
 
 			int numOfParameters = x.size() - num_untunable;
 			double* dc = new double[x.size()- num_untunable];
-			double V_allowed = 0.5*start_weight;
+			double V_allowed = 0.9*start_weight;
 			double* xnew = new double[x.size()- num_untunable];
 			double* dg = new double[(x.size()- num_untunable )*C];
 			double* df = new double[x.size()- num_untunable];
@@ -1041,6 +1034,7 @@ int main() {
 
 			double check_weight=0;
 
+			
 
 			g[0] = -V_allowed+ start_weight;
 			for (int i = 0; i < numOfParameters; i++) {
@@ -1052,12 +1046,12 @@ int main() {
 				xmin[i] = 0.001;
 				xmax[i] = 1;
 				dg[i] = 1;
-				xnew[i] = 1;
+				xnew[i] = 0.5;
 				df[i] = dx * dx*dx*density;
 			}
 
 		//	std::cout <<"V_allowed: "<< V_allowed<< " start_weight: " << start_weight << " check weight: " <<  check_weight << std::endl;
-
+			r0 = 1.5*NeighbourLayers*dx;
 			std::cout << "dx: " <<dx<< std::endl;
 
 	//		std::cout << "constraint size: " << constraintVertexIdSet.size() << std::endl;
@@ -1082,6 +1076,17 @@ int main() {
 
 				Eigen::VectorXd u = doFEM(nodes, x, forceVertexIdSet, constraintVertexIdSet, dx, E, power);
 
+				//calculate stress
+
+				//calculate derivatives for stress
+
+				auto StressVec = calcStresses(ni, E, nodes, x, u, dx);
+
+				std::cout << "done calculating stresses: " << std::endl;
+				
+				optimizeStress(StressVec, u, C, power, dx, change, nodes, x, xnew, dg, g, df, xmin, xmax, density, E, ni, mma, 1, r0);
+
+
 				for (auto f = forceVertexIdSet.begin(); f != forceVertexIdSet.end(); f++) {
 
 					int id = f->first;
@@ -1092,8 +1097,6 @@ int main() {
 				std::cout << "iter: " << iter << " constraint: " << g[0] << " goal: " <<goal_test<< std::endl;
 
 				std::cout << "calculated u, min u: " << u.minCoeff() << std::endl;
-
-
 
 				//	igl::jet(rhoFaces, true, Color);
 			//	viewer.data().set_mesh(V, F);
@@ -1116,12 +1119,14 @@ int main() {
 					displacement(18) = u[x[i].nodeIdx[5] * 3]; displacement(19) = u[x[i].nodeIdx[5] * 3 + 1]; displacement(20) = u[x[i].nodeIdx[5] * 3 + 2];
 					displacement(21) = u[x[i].nodeIdx[7] * 3]; displacement(22) = u[x[i].nodeIdx[7] * 3 + 1]; displacement(23) = u[x[i].nodeIdx[7] * 3 + 2];
 
-					dc[ind] = -dx*power * std::pow(x[i].value, power - 1)* E*displacement.transpose()*KE*displacement;
+					
+
+					dc[ind] = -dx * std::pow(x[i].rho, power - 1)* E*displacement.transpose()*KE*displacement; //-dx* x[i].value / x[i].sum_wj*power * std::pow(x[i].rho, power - 1)* E*displacement.transpose()*KE*displacement;
 					ind++;
 
 				}
 
-				change = optimizeCompliance(xnew, dg, g, dc, xmin, xmax, dc_filtered, V_allowed, mma, nodes, x, dx, numOfVoxelsX, numOfVoxelsY, numOfVoxelsZ, 1);
+				change = optimizeCompliance(xnew, dg, g, dc, xmin, xmax, dc_filtered, V_allowed, mma, nodes, x, dx, numOfVoxelsX, numOfVoxelsY, numOfVoxelsZ, r0, NeighbourLayers);
 
 	//			if (iter == 49) {
 	//				for (int i = 0; i < nodes.size(); i++) {

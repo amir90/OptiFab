@@ -1,6 +1,7 @@
 #pragma once
 #include "StressTuner.h"
-
+#include <ctime>
+#include <chrono>
 
 bool compareByLength(const Stress &a, const Stress & b)
 {
@@ -8,7 +9,7 @@ bool compareByLength(const Stress &a, const Stress & b)
 }
 
 
-double calc_DSigmaPN_DSigmaVM(std::vector<Stress> const &stresses, int k, int beginInd, int endInd, double p) {
+double calc_DSigmaPN_DSigmaVM_sum(std::vector<Stress> const &stresses, int beginInd, int endInd, int p) {
 	//stresses - stress information vector
 	//k - index of current voxel
 	//beginInd - beginning of partition
@@ -20,9 +21,19 @@ double calc_DSigmaPN_DSigmaVM(std::vector<Stress> const &stresses, int k, int be
 	for (int i = beginInd; i < endInd; i++) {
 		sum += std::pow(stresses[i].vonMises, p);
 	}
-	sum = std::pow(sum / N, (1 - p) / p) * (1.0 / N)*std::pow(stresses[k].vonMises, p - 1);
+	return std::pow(sum / N, (1 - p) / p) * (1.0 / N);
 
 	return sum;
+}
+
+double inline calc_DSigmaPN_DSigmaVM(std::vector<Stress> const &stresses, int k, double sum, int p) {
+	//stresses - stress information vector
+	//k - index of current voxel
+	//beginInd - beginning of partition
+	//endInd - ending of partition
+	//p - power
+
+	return sum*std::pow(stresses[k].vonMises, p - 1);
 }
 
 double calcVonMises(Eigen::VectorXd const  &stresses) {
@@ -367,91 +378,160 @@ double optimizeStress(std::vector<Stress> stressVec, Eigen::VectorXd u, int C, i
 	SpMat K_global_full = build_global_stiffness_matrix_full(x, KE, power, nodes); //happens once per iteration
 	K_global_full = dx *E* K_global_full;
 
+	std::cout << "done building global stiffness matrix " <<C<< std::endl;
+
 	for (int i = 0; i < C; i++) { //i-th stress cluster
 
 	//full global stiffness matrix
 
 		int endInd = std::floor(((i + 1)*stressVec.size()) / C); // begining and ending index for stress group in stress array
 
-
-		Eigen::SparseMatrix<double> spMat;
+		std::cout << endInd << std::endl;
 
 		Eigen::VectorXd lambda_i = Eigen::VectorXd::Zero(nodes.size() * 3);
 
+//		Eigen::MatrixXd Ba = Eigen::MatrixXd::Zero(6, nodes.size() * 3);
+
 		Eigen::VectorXd  sum2 = Eigen::VectorXd::Zero(nodes.size() * 3);
 
+		SpMat Ba_sp(6, nodes.size() * 3);
 
-		Eigen::SimplicialCholesky<SpMat> chol(K_global_full);
+		Eigen::VectorXd DsigmaVM_Dsigma_a(6);
+
+
+
+	//	Eigen::SimplicialCholesky<SpMat> chol(K_global_full); //K matrix too big for direct method
 
 		g[i] = 0;
 
+		Eigen::Matrix<double,1,24> temp;
+
+		temp.setZero();
+
+		auto temp_sum = calc_DSigmaPN_DSigmaVM_sum(stressVec, beginInd, endInd, power);
+
 		for (int k = beginInd; k < endInd; k++) {
+
 			int idx = stressVec[k].idx;
 
+			if (k % 1000 == 0) {
+				std::cout << k << std::endl;
+			}
+
+	//		if (x[idx].value <= 0.001) {
+	//			continue;
+	//		}
+
 			g[i] += std::pow(stressVec[k].vonMises, power);
+		
+			/*
 
+			Ba_sp.col(x[idx].nodeIdx[0] * 3) = local_Ba.col(0).sparseView();
+			Ba_sp.col(x[idx].nodeIdx[0] * 3 + 1) = local_Ba.col(1).sparseView();
+			Ba_sp.col(x[idx].nodeIdx[0] * 3 + 2) = local_Ba.col(2).sparseView();
 
-			Eigen::VectorXd DsigmaVM_Dsigma_a(6);
+			Ba_sp.col(x[idx].nodeIdx[1] * 3) = local_Ba.col(3).sparseView();
+			Ba_sp.col(x[idx].nodeIdx[1] * 3 + 1) = local_Ba.col(4).sparseView();
+			Ba_sp.col(x[idx].nodeIdx[1] * 3 + 2) = local_Ba.col(5).sparseView();
 
-			Eigen::MatrixXd Ba = Eigen::MatrixXd::Zero(6, nodes.size() * 3);
+			Ba_sp.col(x[idx].nodeIdx[2] * 3) = local_Ba.col(6).sparseView();;
+			Ba_sp.col(x[idx].nodeIdx[2] * 3 + 1) = local_Ba.col(7).sparseView();
+			Ba_sp.col(x[idx].nodeIdx[2] * 3 + 2) = local_Ba.col(8).sparseView();
 
-			Ba.col(x[idx].nodeIdx[0] * 3) = local_Ba.col(0);
-			Ba.col(x[idx].nodeIdx[0] * 3 + 1) = local_Ba.col(1);
-			Ba.col(x[idx].nodeIdx[0] * 3 + 2) = local_Ba.col(2);
+			Ba_sp.col(x[idx].nodeIdx[4] * 3) = local_Ba.col(9).sparseView();
+			Ba_sp.col(x[idx].nodeIdx[4] * 3 + 1) = local_Ba.col(10).sparseView();
+			Ba_sp.col(x[idx].nodeIdx[4] * 3 + 2) = local_Ba.col(11).sparseView();
 
-			Ba.col(x[idx].nodeIdx[1] * 3) = local_Ba.col(3);
-			Ba.col(x[idx].nodeIdx[1] * 3 + 1) = local_Ba.col(4);
-			Ba.col(x[idx].nodeIdx[1] * 3 + 2) = local_Ba.col(5);
+			Ba_sp.col(x[idx].nodeIdx[3] * 3) = local_Ba.col(12).sparseView();
+			Ba_sp.col(x[idx].nodeIdx[3] * 3 + 1) = local_Ba.col(13).sparseView();
+			Ba_sp.col(x[idx].nodeIdx[3] * 3 + 2) = local_Ba.col(14).sparseView();
 
-			Ba.col(x[idx].nodeIdx[2] * 3) = local_Ba.col(6);
-			Ba.col(x[idx].nodeIdx[2] * 3 + 1) = local_Ba.col(7);
-			Ba.col(x[idx].nodeIdx[2] * 3 + 2) = local_Ba.col(8);
+			Ba_sp.col(x[idx].nodeIdx[6] * 3) = local_Ba.col(15).sparseView();
+			Ba_sp.col(x[idx].nodeIdx[6] * 3 + 1) = local_Ba.col(16).sparseView();
+			Ba_sp.col(x[idx].nodeIdx[6] * 3 + 2) = local_Ba.col(17).sparseView();
 
-			Ba.col(x[idx].nodeIdx[4] * 3) = local_Ba.col(9);
-			Ba.col(x[idx].nodeIdx[4] * 3 + 1) = local_Ba.col(10);
-			Ba.col(x[idx].nodeIdx[4] * 3 + 2) = local_Ba.col(11);
+			Ba_sp.col(x[idx].nodeIdx[5] * 3) = local_Ba.col(18).sparseView();
+			Ba_sp.col(x[idx].nodeIdx[5] * 3 + 1) = local_Ba.col(19).sparseView();
+			Ba_sp.col(x[idx].nodeIdx[5] * 3 + 2) = local_Ba.col(20).sparseView();
 
-			Ba.col(x[idx].nodeIdx[3] * 3) = local_Ba.col(12);
-			Ba.col(x[idx].nodeIdx[3] * 3 + 1) = local_Ba.col(13);
-			Ba.col(x[idx].nodeIdx[3] * 3 + 2) = local_Ba.col(14);
-
-			Ba.col(x[idx].nodeIdx[6] * 3) = local_Ba.col(15);
-			Ba.col(x[idx].nodeIdx[6] * 3 + 1) = local_Ba.col(16);
-			Ba.col(x[idx].nodeIdx[6] * 3 + 2) = local_Ba.col(17);
-
-			Ba.col(x[idx].nodeIdx[5] * 3) = local_Ba.col(18);
-			Ba.col(x[idx].nodeIdx[5] * 3 + 1) = local_Ba.col(19);
-			Ba.col(x[idx].nodeIdx[5] * 3 + 2) = local_Ba.col(20);
-
-			Ba.col(x[idx].nodeIdx[7] * 3) = local_Ba.col(21);
-			Ba.col(x[idx].nodeIdx[7] * 3 + 1) = local_Ba.col(22);
-			Ba.col(x[idx].nodeIdx[7] * 3 + 2) = local_Ba.col(23);
-
+			Ba_sp.col(x[idx].nodeIdx[7] * 3) = local_Ba.col(21).sparseView();
+			Ba_sp.col(x[idx].nodeIdx[7] * 3 + 1) = local_Ba.col(22).sparseView();
+			Ba_sp.col(x[idx].nodeIdx[7] * 3 + 2) = local_Ba.col(23).sparseView();
+*/
 			DsigmaVM_Dsigma_a = calc_DsigmaVM_Dsigma_a(stressVec[k]);
 
-			sum2 = sum2 + std::pow(x[stressVec[k].idx].rho, 0.5)*calc_DSigmaPN_DSigmaVM(stressVec, k, beginInd, endInd, power) * Ba.transpose()*Elasticity.transpose()*DsigmaVM_Dsigma_a;
+			temp = std::sqrt(x[stressVec[k].idx].rho)*calc_DSigmaPN_DSigmaVM(stressVec, k, temp_sum, power) * local_Ba.transpose()*Elasticity.transpose()*DsigmaVM_Dsigma_a;
+
+
+			sum2(x[idx].nodeIdx[0] * 3) += temp(0);
+			sum2(x[idx].nodeIdx[0] * 3 + 1) += temp(1);
+			sum2(x[idx].nodeIdx[0] * 3 + 2) += temp(2);
+			
+			sum2(x[idx].nodeIdx[1] * 3) = temp(3);
+			sum2(x[idx].nodeIdx[1] * 3 + 1) += temp(4);
+			sum2(x[idx].nodeIdx[1] * 3 + 2) += temp(5);
+
+			sum2(x[idx].nodeIdx[2] * 3) += temp(6);;
+			sum2(x[idx].nodeIdx[2] * 3 + 1) += temp(7);
+			sum2(x[idx].nodeIdx[2] * 3 + 2) += temp(8);
+
+			sum2(x[idx].nodeIdx[4] * 3) += temp(9);
+			sum2(x[idx].nodeIdx[4] * 3 + 1) += temp(10);
+			sum2(x[idx].nodeIdx[4] * 3 + 2) += temp(11);
+
+			sum2(x[idx].nodeIdx[3] * 3) += temp(12);
+			sum2(x[idx].nodeIdx[3] * 3 + 1) += temp(13);
+			sum2(x[idx].nodeIdx[3] * 3 + 2) += temp(14);
+
+			sum2(x[idx].nodeIdx[6] * 3) += temp(15);
+			sum2(x[idx].nodeIdx[6] * 3 + 1) += temp(16);
+			sum2(x[idx].nodeIdx[6] * 3 + 2) += temp(17);
+
+			sum2(x[idx].nodeIdx[5] * 3) += temp(18);
+			sum2(x[idx].nodeIdx[5] * 3 + 1) += temp(19);
+			sum2(x[idx].nodeIdx[5] * 3 + 2) += temp(20);
+
+			sum2(x[idx].nodeIdx[7] * 3) += temp(21);
+			sum2(x[idx].nodeIdx[7] * 3 + 1) += temp(22);
+			sum2(x[idx].nodeIdx[7] * 3 + 2) += temp(23);
+			
+		//	sum2 += std::pow(x[stressVec[k].idx].rho, 0.5)*calc_DSigmaPN_DSigmaVM(stressVec, k, beginInd, endInd, power) * Ba_sp.transpose()*Elasticity.transpose()*DsigmaVM_Dsigma_a;
+
+		//	Ba_sp.setZero();
 		}
+
+		std::cout << "done calculating global Ba " << std::endl;
 
 		g[i] = std::pow((double)1.0 / (endInd - beginInd)*g[i], (double)1.0 / power) - allowableStress;
 		//calculate lambda_i (adjoint variable)
-		lambda_i = chol.solve(sum2);
+		lambda_i = do_FEM(K_global_full, sum2);//chol.solve(sum2); 
 
 	//	std::cout << "begin calculating derivatives with respect to tunable DV" << std::endl;
 
+		auto t_start = std::chrono::high_resolution_clock::now();
+
 		for (int j = 0; j < x.size(); j++) { //derivative of stresses with respect to stress i
 
-			double  sum3 = 0;
+			if (x[j].tunable == false) { continue; }
 
-			Eigen::VectorXd  sum1 = Eigen::VectorXd::Zero(nodes.size() * 3);
+			double  sum3 = 0;
 
 			if (j % 100 == 0) {
 
 				std::cout << "calculated :" << j << "/" << x.size() << std::endl;
 			}
 
-			if (x[j].tunable == false) { continue; }
+			Eigen::VectorXd  sum1 = Eigen::VectorXd::Zero(nodes.size() * 3);
+
+
 
 			SpMat K_deriv((nodes.size()) * 3, (nodes.size()) * 3);
+			
+		//	K_deriv.setZero();
+			K_deriv.reserve(87);
+	//		K_deriv.reserve(Eigen::VectorXi::Constant((nodes.size()) * 3, x[j].influencesVoxels.size() * 2));
+
+			std::vector<T> coefficients;            // list of non-zeros coefficients
 
 			//build sparse matrix - the global stiffness derivative matrix
 			for (auto l = x[j].influencesVoxels.begin(); l != x[j].influencesVoxels.end(); l++) {
@@ -461,7 +541,6 @@ double optimizeStress(std::vector<Stress> stressVec, Eigen::VectorXd u, int C, i
 				assert(voxelIdx == j);
 
 				// Assembly:
-				std::vector<T> coefficients;            // list of non-zeros coefficients
 				std::vector<int> order = { 0,1,2,4,3,6,5,7 };
 				double factor;
 				factor = power * E* std::pow(x[voxelIdx].rho, power - 1);
@@ -477,21 +556,28 @@ double optimizeStress(std::vector<Stress> stressVec, Eigen::VectorXd u, int C, i
 						coefficients.push_back(T(row1, col1, val11)); coefficients.push_back(T(row1, col2, val12)); coefficients.push_back(T(row1, col3, val13));
 						coefficients.push_back(T(row2, col1, val21)); coefficients.push_back(T(row2, col2, val22)); coefficients.push_back(T(row2, col3, val23));
 						coefficients.push_back(T(row3, col1, val31)); coefficients.push_back(T(row3, col2, val32)); coefficients.push_back(T(row3, col3, val33));
+					
 					}
 				}
 
-				K_deriv.setFromTriplets(coefficients.begin(), coefficients.end());
-
-				sum1 += dx * K_deriv*calc_Drho_e_Dxb(j, voxelIdx, x, r0, nodes)*u;
-
-				coefficients.clear();
-
 			}
+
+
+			K_deriv.setFromTriplets(coefficients.begin(), coefficients.end());
+
+			K_deriv.makeCompressed();
+
+
+			sum1 += dx * K_deriv*calc_Drho_e_Dxb(j, 1, x, r0, nodes)*u;
+
+			//	coefficients.clear();
 
 	//		std::cout << "done sum1" << std::endl;
 
 
 			//build global Ba
+
+			SpMat Ba(6, nodes.size() * 3);
 
 			for (int k = beginInd; k < endInd; k++) {
 				int idx = stressVec[k].idx;
@@ -504,51 +590,52 @@ double optimizeStress(std::vector<Stress> stressVec, Eigen::VectorXd u, int C, i
 					}
 				}
 
-				Eigen::VectorXd DsigmaVM_Dsigma_a(6);
+		//		Eigen::VectorXd DsigmaVM_Dsigma_a(6);
 				
-				Eigen::MatrixXd Ba = Eigen::MatrixXd::Zero(6, nodes.size() * 3);
 
-				Ba.col(x[idx].nodeIdx[0] * 3) = local_Ba.col(0);
-				Ba.col(x[idx].nodeIdx[0] * 3 + 1) = local_Ba.col(1);
-				Ba.col(x[idx].nodeIdx[0] * 3 + 2) = local_Ba.col(2);
+//				Eigen::MatrixXd Ba = Eigen::MatrixXd::Zero(6, nodes.size() * 3);
+				/*
+				Ba.col(x[idx].nodeIdx[0] * 3) = local_Ba.col(0).sparseView();
+				Ba.col(x[idx].nodeIdx[0] * 3 + 1) = local_Ba.col(1).sparseView();
+				Ba.col(x[idx].nodeIdx[0] * 3 + 2) = local_Ba.col(2).sparseView();
 
-				Ba.col(x[idx].nodeIdx[1] * 3) = local_Ba.col(3);
-				Ba.col(x[idx].nodeIdx[1] * 3 + 1) = local_Ba.col(4);
-				Ba.col(x[idx].nodeIdx[1] * 3 + 2) = local_Ba.col(5);
+				Ba.col(x[idx].nodeIdx[1] * 3) = local_Ba.col(3).sparseView();
+				Ba.col(x[idx].nodeIdx[1] * 3 + 1) = local_Ba.col(4).sparseView();
+				Ba.col(x[idx].nodeIdx[1] * 3 + 2) = local_Ba.col(5).sparseView();
 
-				Ba.col(x[idx].nodeIdx[2] * 3) = local_Ba.col(6);
-				Ba.col(x[idx].nodeIdx[2] * 3 + 1) = local_Ba.col(7);
-				Ba.col(x[idx].nodeIdx[2] * 3 + 2) = local_Ba.col(8);
+				Ba.col(x[idx].nodeIdx[2] * 3) = local_Ba.col(6).sparseView();;
+				Ba.col(x[idx].nodeIdx[2] * 3 + 1) = local_Ba.col(7).sparseView();
+				Ba.col(x[idx].nodeIdx[2] * 3 + 2) = local_Ba.col(8).sparseView();
 
-				Ba.col(x[idx].nodeIdx[4] * 3) = local_Ba.col(9);
-				Ba.col(x[idx].nodeIdx[4] * 3 + 1) = local_Ba.col(10);
-				Ba.col(x[idx].nodeIdx[4] * 3 + 2) = local_Ba.col(11);
+				Ba.col(x[idx].nodeIdx[4] * 3) = local_Ba.col(9).sparseView();
+				Ba.col(x[idx].nodeIdx[4] * 3 + 1) = local_Ba.col(10).sparseView();
+				Ba.col(x[idx].nodeIdx[4] * 3 + 2) = local_Ba.col(11).sparseView();
 
-				Ba.col(x[idx].nodeIdx[3] * 3) = local_Ba.col(12);
-				Ba.col(x[idx].nodeIdx[3] * 3 + 1) = local_Ba.col(13);
-				Ba.col(x[idx].nodeIdx[3] * 3 + 2) = local_Ba.col(14);
+				Ba.col(x[idx].nodeIdx[3] * 3) = local_Ba.col(12).sparseView();
+				Ba.col(x[idx].nodeIdx[3] * 3 + 1) = local_Ba.col(13).sparseView();
+				Ba.col(x[idx].nodeIdx[3] * 3 + 2) = local_Ba.col(14).sparseView();
 
-				Ba.col(x[idx].nodeIdx[6] * 3) = local_Ba.col(15);
-				Ba.col(x[idx].nodeIdx[6] * 3 + 1) = local_Ba.col(16);
-				Ba.col(x[idx].nodeIdx[6] * 3 + 2) = local_Ba.col(17);
+				Ba.col(x[idx].nodeIdx[6] * 3) = local_Ba.col(15).sparseView();
+				Ba.col(x[idx].nodeIdx[6] * 3 + 1) = local_Ba.col(16).sparseView();
+				Ba.col(x[idx].nodeIdx[6] * 3 + 2) = local_Ba.col(17).sparseView();
 
-				Ba.col(x[idx].nodeIdx[5] * 3) = local_Ba.col(18);
-				Ba.col(x[idx].nodeIdx[5] * 3 + 1) = local_Ba.col(19);
-				Ba.col(x[idx].nodeIdx[5] * 3 + 2) = local_Ba.col(20);
+				Ba.col(x[idx].nodeIdx[5] * 3) = local_Ba.col(18).sparseView();
+				Ba.col(x[idx].nodeIdx[5] * 3 + 1) = local_Ba.col(19).sparseView();
+				Ba.col(x[idx].nodeIdx[5] * 3 + 2) = local_Ba.col(20).sparseView();
 
-				Ba.col(x[idx].nodeIdx[7] * 3) = local_Ba.col(21);
-				Ba.col(x[idx].nodeIdx[7] * 3 + 1) = local_Ba.col(22);
-				Ba.col(x[idx].nodeIdx[7] * 3 + 2) = local_Ba.col(23);
-				
-				DsigmaVM_Dsigma_a = calc_DsigmaVM_Dsigma_a(stressVec[k]);
+				Ba.col(x[idx].nodeIdx[7] * 3) = local_Ba.col(21).sparseView();
+				Ba.col(x[idx].nodeIdx[7] * 3 + 1) = local_Ba.col(22).sparseView();
+				Ba.col(x[idx].nodeIdx[7] * 3 + 2) = local_Ba.col(23).sparseView();
+				*/
+		//		DsigmaVM_Dsigma_a = calc_DsigmaVM_Dsigma_a(stressVec[k]);
 
-			//	sum2 = sum2 + std::pow(x[stressVec[k].idx].rho, 0.5) *calc_DSigmaPN_DSigmaVM(stressVec, k, beginInd, endInd, power) *Ba.transpose()*Elasticity.transpose()*DsigmaVM_Dsigma_a;
+		//		sum2 += std::pow(x[stressVec[k].idx].rho, 0.5) *calc_DSigmaPN_DSigmaVM(stressVec, k, temp_sum, power) *Ba.transpose()*Elasticity.transpose()*DsigmaVM_Dsigma_a;
 
-				sum3 += calc_DSigmaPN_DSigmaVM(stressVec, k, beginInd, endInd, power)*DsigmaVM_Dsigma_a.transpose()*calc_DniS_Drho_e(x[stressVec[k].idx].rho)*calc_Drho_e_Dxb(j, stressVec[k].idx, x, r0, nodes)*Elasticity*Ba*u;
+		//		sum3 += calc_DSigmaPN_DSigmaVM(stressVec, k, temp_sum, power)*DsigmaVM_Dsigma_a.transpose()*calc_DniS_Drho_e(x[idx].rho)*calc_Drho_e_Dxb(j, stressVec[k].idx, x, r0, nodes)*Elasticity*Ba*u;
 			
 			}
 
-			dg[deriv_Ind] = sum3 -lambda_i.transpose()*sum1;
+	//		dg[deriv_Ind] = sum3 -lambda_i.transpose()*sum1;
 /*
 			if (deriv_Ind == 0) {
 				std::cout << "dg" << dg[deriv_Ind] <<std::endl;
@@ -561,6 +648,10 @@ double optimizeStress(std::vector<Stress> stressVec, Eigen::VectorXd u, int C, i
 
 		}
 
+		auto t_end = std::chrono::high_resolution_clock::now();
+
+		std::cout << "time to compute: " << std::chrono::duration<double, std::milli>(t_end - t_start).count() << std::endl;
+		exit(-1);
 		beginInd = endInd;
 
 

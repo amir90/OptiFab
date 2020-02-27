@@ -594,7 +594,7 @@ void calc_rho(std::vector<std::vector<double>> const &nodes, std::vector<designV
 			for (int z = -NeighbourLayers; z <= NeighbourLayers; z++) {
 				for (int y = -NeighbourLayers; y <= NeighbourLayers; y++) {
 					for (int xAxis = -NeighbourLayers; xAxis <= NeighbourLayers; xAxis++) {
-						if (xAxis == 0 && y == 0 && z == 0) { continue; }
+				//		if (xAxis == 0 && y == 0 && z == 0) { continue; }
 						tempidx = moveZ(x, curridx, z);
 						if (tempidx == -1) {
 							continue;
@@ -636,6 +636,7 @@ void calc_rho(std::vector<std::vector<double>> const &nodes, std::vector<designV
 				}
 				if (wj < 0) {
 					x[*i].influencesVoxels.insert(l);
+					x[l].inluencedBy.insert(*i);
 					wjx += wj * temp.value;
 				sum_wj += wj;
 				}
@@ -647,6 +648,8 @@ void calc_rho(std::vector<std::vector<double>> const &nodes, std::vector<designV
 			idxSet.clear();
 			sum_wj = 0;
 			wjx = 0;
+
+			assert(x[l].inluencedBy.find(l) != x[l].inluencedBy.end());
 		}
 		std::cout << "finished calculating rho" << std::endl;
 }
@@ -757,23 +760,24 @@ void voxelize(std::vector<designVariable> &x, int N, double &dx, std::vector<std
 // add all non zero voxels to boundary
 	for (int i = 0; i < x.size(); i++) {
 
-		if (x[i].tunable == false) {
+		if (x[i].value == 0.001) {
 
-			continue;
+			for (int j = 0; j < 6; j++) {
+				if (x[x[i].neighbors[j]].rho == 0.001) {
+					continue;
+				}
+				if (x[i].neighbors[j] != -1 && x[x[i].neighbors[j]].rho > 0.001) {
+					boundaryVoxelFaces.insert({ x[i].varIdx , x[i].neighbors[j] });
+				}
+				else if (x[i].neighbors[j] != -1) {
 
-		}
+					boundaryVoxelFaces.insert({ x[i].varIdx , x[i].neighbors[j] });
 
-		for (int j = 0; j < 6; j++) {
-			if (x[i].neighbors[j] != -1 && x[x[i].neighbors[j]].rho != 0.001) {
-				boundaryVoxelFaces.insert({ x[i].varIdx , x[i].neighbors[j] });
-			}
-			else if (x[i].neighbors[j] != -1) {
-
-				boundaryVoxelFaces.insert({ x[i].varIdx , x[i].neighbors[j] });
-
+				}
 			}
 		}
 	}
+
 
 	// go over all boundary voxels
 	//check which boundary face\faces intersects face with bc
@@ -785,10 +789,11 @@ void voxelize(std::vector<designVariable> &x, int N, double &dx, std::vector<std
 
 	for (auto i = boundaryVoxelFaces.begin(); i != boundaryVoxelFaces.end(); i++) {
 
+		//voxel - boundary boxel, nb - neighbour;
 		int voxel = i->first; int nb = i->second;
 
 		//check if nb = -1
-		if (nb == -1) {
+		if (nb == -1) {  
 			continue;
 		}
 
@@ -820,8 +825,10 @@ void voxelize(std::vector<designVariable> &x, int N, double &dx, std::vector<std
 			glm::vec3 tv2 = { V.row(F(*j,2))(0) ,V.row(F(*j,2))(1)  ,V.row(F(*j,2))(2) };
 
 			if (triBoxOverlap(boxCenter1, halfBoxSize, tv0, tv1, tv2) || triBoxOverlap(boxCenter2, halfBoxSize, tv0, tv1, tv2)) {
+				//add constraints
 				constraintVertexSet.insert(intersection.begin(), intersection.end());
 				x[nb].tunable = false;
+				x[voxel].tunable = false;
 				intersectFlag = true;
 				break;
 			}
@@ -842,7 +849,10 @@ void voxelize(std::vector<designVariable> &x, int N, double &dx, std::vector<std
 				for (auto k = intersection.begin(); k != intersection.end(); k++) {
 					std::pair<int, Eigen::Vector3f> force;
 					force.first = *k; force.second = j->second;
-					ForceVertexSet.insert(force);
+					//add constraints
+					if (constraintVertexSet.find(force.first) == constraintVertexSet.end()) {
+						ForceVertexSet.insert(force);
+					}
 					intersectFlag = true;
 					break;
 				}

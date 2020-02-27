@@ -20,6 +20,7 @@ struct designVariable {
 	Eigen::VectorXd displacements = Eigen::VectorXd::Zero(24);
 	//double displacements[24];
 	std::set<int> influencesVoxels; //voxels which this voxel influences
+	std::set<int> inluencedBy; //voxels which influence this voxel
 	double sum_wj = 0;
 };
 
